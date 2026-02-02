@@ -1,40 +1,4 @@
-import {
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc
-} from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
-
-import { db } from "./firebase.js";
-
-const modal = document.getElementById("lessonModal");
-const titleInput = document.getElementById("lessonTitle");
-const coachSelect = document.getElementById("lessonCoach");
-const saveBtn = document.getElementById("saveLesson");
-const cancelBtn = document.getElementById("cancelLesson");
-const calendarEl = document.getElementById("calendar");
-
-let selectedStart = null;
-let calendar;
-
-// Color coding for coaches
-const coachColors = {
-  "Vlad": "#3b82f6",       // blue
-  "Ana": "#10b981",        // green
-  "Petar Boss": "#f59e0b"  // orange
-};
-
-// ordinal formatter (2nd, 3rd, 4th)
-function formatOrdinal(n) {
-  if (n > 3 && n < 21) return n + "th";
-  switch (n % 10) {
-    case 1: return n + "st";
-    case 2: return n + "nd";
-    case 3: return n + "rd";
-    default: return n + "th";
-  }
-}
+// ... imports and setup same as before
 
 document.addEventListener("DOMContentLoaded", async () => {
 
@@ -42,17 +6,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     initialView: "timeGridWeek",
     firstDay: 1,
     selectable: true,
-
+    selectMirror: true,
+    nowIndicator: true,
     headerToolbar: {
       left: "prev,next today",
       center: "title",
       right: "timeGridDay,timeGridWeek"
     },
 
-    slotMinTime: "08:00:00",
-    slotMaxTime: "23:00:00",
-    slotDuration: "00:15:00",      // 15-minute divisions
-    slotLabelInterval: "01:00:00",  // only show hour labels
+    // 🔥 Updated calendar hours
+    slotMinTime: "09:00:00",
+    slotMaxTime: "22:00:00",
+    slotDuration: "00:15:00",
+    slotLabelInterval: "01:00:00",
 
     dayHeaderContent(arg) {
       const weekday = arg.date.toLocaleDateString("en-GB", { weekday: "long" });
@@ -69,19 +35,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       calendarEl.style.pointerEvents = "none";
     },
 
+    // DELETE lessons desktop + mobile
     eventClick: async function(info) {
-      const ok = confirm(`Delete lesson "${info.event.title}"?`);
-      if (!ok) return;
-
-      try {
-        const lessonId = info.event.extendedProps.docId;
-        await deleteDoc(doc(db, "lessons", lessonId));
-        info.event.remove();
-        alert("🗑 Lesson deleted");
-      } catch (e) {
-        console.error(e);
-        alert("❌ Failed to delete lesson");
-      }
+      handleDelete(info.event);
+    },
+    eventTouchStart: async function(info) {
+      handleDelete(info.event);
     }
   });
 
@@ -112,7 +71,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const start = selectedStart;
-    const end = new Date(start.getTime() + 45 * 60000); // 45 min
+    const end = new Date(start.getTime() + 45 * 60000);
 
     try {
       const docRef = await addDoc(collection(db, "lessons"), {
@@ -144,4 +103,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     modal.classList.add("hidden");
     calendarEl.style.pointerEvents = "auto";
   };
+
+  // DELETE function
+  async function handleDelete(event) {
+    const ok = confirm(`Delete lesson "${event.title}"?`);
+    if (!ok) return;
+
+    try {
+      const lessonId = event.extendedProps.docId;
+      await deleteDoc(doc(db, "lessons", lessonId));
+      event.remove();
+      alert("🗑 Lesson deleted");
+    } catch (e) {
+      console.error(e);
+      alert("❌ Failed to delete lesson");
+    }
+  }
 });
