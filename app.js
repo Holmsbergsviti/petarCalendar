@@ -44,6 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     slotMinTime: "08:00:00",
     slotMaxTime: "23:00:00",
+    slotDuration: '00:15:00',
 
     dayHeaderContent(arg) {
       const weekday = arg.date.toLocaleDateString("en-GB", { weekday: "long" });
