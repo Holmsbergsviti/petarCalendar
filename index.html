@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <title>Dance Lessons Calendar</title>
+
   <link rel="icon" href="master_icon.jpg">
-  <!-- FullCalendar CSS -->
+
+  <!-- FullCalendar -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.11/index.global.min.css">
 
@@ -12,58 +14,55 @@
 </head>
 <body>
 
-<h1>Dance Lessons Calendar</h1>
+<h1>Dance Lessons</h1>
 
 <div id="calendar"></div>
 
 <!-- Modal -->
 <div id="lessonModal" class="modal hidden">
   <div class="modal-content">
-    <h2>Add lesson</h2>
+    <h3 id="modalTitle">Add Lesson</h3>
 
     <label>
       Lesson name
-      <input id="lessonTitle" type="text" placeholder="Ballroom training">
+      <input id="lessonTitle" type="text">
     </label>
 
     <label>
-      Coach
-      <select id="lessonCoach">
-        <option>Vlad</option>
-        <option>Ana</option>
-        <option>Petar Boss</option>
+      Coach(es)
+      <select id="lessonCoach" multiple>
+        <option value="Vlad">Vlad</option>
+        <option value="Ana">Ana</option>
+        <option value="Petar Boss">Petar Boss</option>
       </select>
     </label>
 
     <label>
-      Day
-      <input type="date" id="lessonDate">
+      Date
+      <input id="lessonDate" type="date">
     </label>
 
     <label>
       Start time
-      <input type="time" id="lessonTime" value="09:00">
+      <input id="lessonTime" type="time">
     </label>
 
     <div class="modal-buttons">
       <button id="saveLesson">Save</button>
+      <button id="deleteLesson" class="secondary hidden">Delete</button>
       <button id="cancelLesson" class="secondary">Cancel</button>
     </div>
   </div>
 </div>
 
-<!-- Floating Add Lesson Button -->
+<!-- Floating button -->
 <button id="addLessonBtn" class="floating-btn">+</button>
 
-<!-- FullCalendar JS (GLOBAL build) -->
+<!-- FullCalendar -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.11/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@6.1.11/index.global.min.js"></script>
 
-<!-- Firebase -->
 <script type="module" src="firebase.js"></script>
-
-<!-- App -->
 <script type="module" src="app.js"></script>
 
 </body>
