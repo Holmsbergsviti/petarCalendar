@@ -122,3 +122,14 @@ button.secondary {
     height: 20px !important;
   }
 }
+
+.checkboxes label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+}
+
+button.danger {
+  background: #ef4444;
+}
