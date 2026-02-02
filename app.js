@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       return `${weekday} ${day}`;
     },
 
-    // PC desktop select: click a slot
+    // PC desktop select
     select: info => {
       if(window.innerWidth > 500){ // desktop
         selectedStart = info.start;

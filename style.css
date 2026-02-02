@@ -109,4 +109,16 @@ button.secondary {
   .modal-buttons button {
     flex: 1 1 45%;
   }
+
+  /* mobile slots bigger for tapping */
+  .fc-timegrid-slot {
+    height: 40px !important;
+  }
+}
+
+/* PC slots smaller */
+@media (min-width: 501px) {
+  .fc-timegrid-slot {
+    height: 20px !important;
+  }
 }
