@@ -12,6 +12,8 @@ const addLessonBtn = document.getElementById("addLessonBtn");
 const calendarEl = document.getElementById("calendar");
 
 let calendar;
+let selectedStart = null;
+
 const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
 
 function formatOrdinal(n){
@@ -41,13 +43,26 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       return `${weekday} ${day}`;
     },
 
+    // PC desktop select: click a slot
+    select: info => {
+      if(window.innerWidth > 500){ // desktop
+        selectedStart = info.start;
+        titleInput.value = "";
+        lessonDateInput.valueAsDate = info.start;
+        lessonTimeInput.value = info.start.toTimeString().slice(0,5);
+        modal.classList.remove("hidden");
+      }
+      calendar.unselect();
+    },
+
+    // click event to delete
     eventClick: info => handleDelete(info.event),
     eventTouchStart: info => handleDelete(info.event)
   });
 
   calendar.render();
 
-  // LOAD LESSONS
+  // LOAD LESSONS FROM FIRESTORE
   const snapshot = await getDocs(collection(db,"lessons"));
   snapshot.forEach(docSnap=>{
     const d = docSnap.data();
@@ -61,13 +76,14 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     });
   });
 
-  // Floating button opens modal
+  // Floating button for mobile
   addLessonBtn.onclick = () => {
     const now = new Date();
     lessonDateInput.valueAsDate = now;
     lessonTimeInput.value = "09:00";
     titleInput.value = "";
     modal.classList.remove("hidden");
+    selectedStart = null; // mobile uses manual inputs
   };
 
   // SAVE LESSON
@@ -76,11 +92,18 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     const coach = coachSelect.value;
     if (!title) { alert("Enter lesson name"); return; }
 
-    const dateParts = lessonDateInput.value.split("-");
-    const [year, month, day] = dateParts.map(Number);
-    const [hour, minute] = lessonTimeInput.value.split(":").map(Number);
-    const start = new Date(year, month-1, day, hour, minute);
-    const end = new Date(start.getTime()+45*60000);
+    let start;
+    if(selectedStart){
+      start = selectedStart; // desktop: use clicked slot
+    } else {
+      // mobile: get from inputs
+      const dateParts = lessonDateInput.value.split("-");
+      const [year, month, day] = dateParts.map(Number);
+      const [hour, minute] = lessonTimeInput.value.split(":").map(Number);
+      start = new Date(year, month-1, day, hour, minute);
+    }
+
+    const end = new Date(start.getTime() + 45*60000);
 
     try {
       const docRef = await addDoc(collection(db,"lessons"), {title, coach, start:start.toISOString(), end:end.toISOString()});
@@ -94,6 +117,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       });
       modal.classList.add("hidden");
       alert("✅ Lesson added");
+      selectedStart = null; // reset
     } catch(e){ console.error(e); alert("❌ Failed to add lesson"); }
   };
 
