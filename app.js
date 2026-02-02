@@ -18,7 +18,14 @@ const calendarEl = document.getElementById("calendar");
 let selectedStart = null;
 let calendar;
 
-// ordinal formatter
+// Color coding for coaches
+const coachColors = {
+  "Vlad": "#3b82f6",       // blue
+  "Ana": "#10b981",        // green
+  "Petar Boss": "#f59e0b"  // orange
+};
+
+// ordinal formatter (2nd, 3rd, 4th)
 function formatOrdinal(n) {
   if (n > 3 && n < 21) return n + "th";
   switch (n % 10) {
@@ -44,7 +51,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     slotMinTime: "08:00:00",
     slotMaxTime: "23:00:00",
-    slotDuration: '00:15:00',
+    slotDuration: "00:15:00",      // 15-minute divisions
+    slotLabelInterval: "01:00:00",  // only show hour labels
 
     dayHeaderContent(arg) {
       const weekday = arg.date.toLocaleDateString("en-GB", { weekday: "long" });
@@ -61,7 +69,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       calendarEl.style.pointerEvents = "none";
     },
 
-    // 🔥 DELETE LESSON
     eventClick: async function(info) {
       const ok = confirm(`Delete lesson "${info.event.title}"?`);
       if (!ok) return;
@@ -88,9 +95,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       title: `${d.title} (${d.coach})`,
       start: d.start,
       end: d.end,
-      extendedProps: {
-        docId: docSnap.id // 🔑 store Firestore ID
-      }
+      backgroundColor: coachColors[d.coach] || "#999",
+      borderColor: coachColors[d.coach] || "#999",
+      extendedProps: { docId: docSnap.id }
     });
   });
 
@@ -105,7 +112,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const start = selectedStart;
-    const end = new Date(start.getTime() + 45 * 60000);
+    const end = new Date(start.getTime() + 45 * 60000); // 45 min
 
     try {
       const docRef = await addDoc(collection(db, "lessons"), {
@@ -119,9 +126,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         title: `${title} (${coach})`,
         start,
         end,
-        extendedProps: {
-          docId: docRef.id
-        }
+        backgroundColor: coachColors[coach],
+        borderColor: coachColors[coach],
+        extendedProps: { docId: docRef.id }
       });
 
       modal.classList.add("hidden");
