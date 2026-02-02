@@ -35,12 +35,25 @@
       </select>
     </label>
 
+    <label>
+      Day
+      <input type="date" id="lessonDate">
+    </label>
+
+    <label>
+      Start time
+      <input type="time" id="lessonTime" value="09:00">
+    </label>
+
     <div class="modal-buttons">
       <button id="saveLesson">Save</button>
       <button id="cancelLesson" class="secondary">Cancel</button>
     </div>
   </div>
 </div>
+
+<!-- Floating Add Lesson Button -->
+<button id="addLessonBtn" class="floating-btn">+</button>
 
 <!-- FullCalendar JS (GLOBAL build) -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>

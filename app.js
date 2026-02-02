@@ -4,13 +4,14 @@ import { db } from "./firebase.js";
 const modal = document.getElementById("lessonModal");
 const titleInput = document.getElementById("lessonTitle");
 const coachSelect = document.getElementById("lessonCoach");
+const lessonDateInput = document.getElementById("lessonDate");
+const lessonTimeInput = document.getElementById("lessonTime");
 const saveBtn = document.getElementById("saveLesson");
 const cancelBtn = document.getElementById("cancelLesson");
+const addLessonBtn = document.getElementById("addLessonBtn");
 const calendarEl = document.getElementById("calendar");
 
-let selectedStart = null;
 let calendar;
-
 const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
 
 function formatOrdinal(n){
@@ -31,24 +32,13 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     slotMaxTime:"22:00:00",
     slotDuration:"00:15:00",
     slotLabelInterval:"01:00:00",
-    height: 'auto',
-    contentHeight: 'auto',
-
-    // make mobile taps work reliably
-    selectLongPressDelay: 200,
-    selectMinDistance: 0,
+    height:'auto',
+    contentHeight:'auto',
 
     dayHeaderContent: arg => {
       const weekday = arg.date.toLocaleDateString("en-GB",{ weekday: "long" });
       const day = formatOrdinal(arg.date.getDate());
       return `${weekday} ${day}`;
-    },
-
-    select: info => {
-      calendar.unselect();
-      selectedStart = info.start;
-      titleInput.value = "";
-      modal.classList.remove("hidden");
     },
 
     eventClick: info => handleDelete(info.event),
@@ -71,16 +61,29 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     });
   });
 
+  // Floating button opens modal
+  addLessonBtn.onclick = () => {
+    const now = new Date();
+    lessonDateInput.valueAsDate = now;
+    lessonTimeInput.value = "09:00";
+    titleInput.value = "";
+    modal.classList.remove("hidden");
+  };
+
   // SAVE LESSON
-  saveBtn.onclick = async ()=>{
+  saveBtn.onclick = async () => {
     const title = titleInput.value.trim();
     const coach = coachSelect.value;
-    if(!title){alert("Please enter lesson name"); return;}
-    const start = selectedStart;
+    if (!title) { alert("Enter lesson name"); return; }
+
+    const dateParts = lessonDateInput.value.split("-");
+    const [year, month, day] = dateParts.map(Number);
+    const [hour, minute] = lessonTimeInput.value.split(":").map(Number);
+    const start = new Date(year, month-1, day, hour, minute);
     const end = new Date(start.getTime()+45*60000);
 
-    try{
-      const docRef = await addDoc(collection(db,"lessons"),{title,coach,start:start.toISOString(),end:end.toISOString()});
+    try {
+      const docRef = await addDoc(collection(db,"lessons"), {title, coach, start:start.toISOString(), end:end.toISOString()});
       calendar.addEvent({
         title:`${title} (${coach})`,
         start,
@@ -91,12 +94,10 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       });
       modal.classList.add("hidden");
       alert("✅ Lesson added");
-    }catch(e){console.error(e); alert("❌ Failed to add lesson");}
+    } catch(e){ console.error(e); alert("❌ Failed to add lesson"); }
   };
 
-  cancelBtn.onclick = ()=>{
-    modal.classList.add("hidden");
-  };
+  cancelBtn.onclick = ()=> modal.classList.add("hidden");
 
   async function handleDelete(event){
     const ok = confirm(`Delete lesson "${event.title}"?`);
@@ -106,6 +107,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       await deleteDoc(doc(db,"lessons",lessonId));
       event.remove();
       alert("🗑 Lesson deleted");
-    }catch(e){console.error(e); alert("❌ Failed to delete lesson");}
+    } catch(e){ console.error(e); alert("❌ Failed to delete lesson"); }
   }
+
 });
