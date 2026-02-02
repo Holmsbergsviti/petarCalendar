@@ -31,23 +31,30 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     slotMaxTime:"22:00:00",
     slotDuration:"00:15:00",
     slotLabelInterval:"01:00:00",
+
+    height: window.innerHeight - 40, // full height
     dayHeaderContent: arg => {
-      const weekday = arg.date.toLocaleDateString("en-GB",{weekday:"long"});
+      const weekday = arg.date.toLocaleDateString("en-GB",{ weekday: "long" });
       const day = formatOrdinal(arg.date.getDate());
       return `${weekday} ${day}`;
     },
-    select: info=>{
+
+    select: info => {
       calendar.unselect();
       selectedStart = info.start;
-      titleInput.value="";
+      titleInput.value = "";
       modal.classList.remove("hidden");
-      calendarEl.style.pointerEvents="none";
     },
-    eventClick: info=>handleDelete(info.event),
-    eventTouchStart: info=>handleDelete(info.event)
+
+    eventClick: info => handleDelete(info.event),
+    eventTouchStart: info => handleDelete(info.event)
   });
 
   calendar.render();
+
+  window.addEventListener("resize", () => {
+    calendar.setOption("height", window.innerHeight - 40);
+  });
 
   // LOAD LESSONS
   const snapshot = await getDocs(collection(db,"lessons"));
@@ -70,6 +77,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     if(!title){alert("Please enter lesson name"); return;}
     const start = selectedStart;
     const end = new Date(start.getTime()+45*60000);
+
     try{
       const docRef = await addDoc(collection(db,"lessons"),{title,coach,start:start.toISOString(),end:end.toISOString()});
       calendar.addEvent({
@@ -81,14 +89,12 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         extendedProps:{docId:docRef.id}
       });
       modal.classList.add("hidden");
-      calendarEl.style.pointerEvents="auto";
       alert("✅ Lesson added");
     }catch(e){console.error(e); alert("❌ Failed to add lesson");}
   };
 
   cancelBtn.onclick = ()=>{
     modal.classList.add("hidden");
-    calendarEl.style.pointerEvents="auto";
   };
 
   async function handleDelete(event){
