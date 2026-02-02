@@ -38,6 +38,8 @@ h1 {
   border-radius: 12px;
   width: 320px;
   max-width: 90%;
+  max-height: 90%;   /* limits modal height */
+  overflow-y: auto;  /* scroll if content too tall */
   box-sizing: border-box;
 }
 
@@ -49,6 +51,7 @@ label {
 
 input, select {
   width: 100%;
+  max-width: 300px; /* prevents over-stretching */
   padding: 8px;
   margin-top: 5px;
   box-sizing: border-box;

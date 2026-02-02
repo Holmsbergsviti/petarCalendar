@@ -31,8 +31,13 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     slotMaxTime:"22:00:00",
     slotDuration:"00:15:00",
     slotLabelInterval:"01:00:00",
+    height: 'auto',
+    contentHeight: 'auto',
 
-    height: window.innerHeight - 40, // full height
+    // make mobile taps work reliably
+    selectLongPressDelay: 200,
+    selectMinDistance: 0,
+
     dayHeaderContent: arg => {
       const weekday = arg.date.toLocaleDateString("en-GB",{ weekday: "long" });
       const day = formatOrdinal(arg.date.getDate());
@@ -51,10 +56,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   });
 
   calendar.render();
-
-  window.addEventListener("resize", () => {
-    calendar.setOption("height", window.innerHeight - 40);
-  });
 
   // LOAD LESSONS
   const snapshot = await getDocs(collection(db,"lessons"));
