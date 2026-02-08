@@ -86,3 +86,13 @@ button {
 @media (max-width: 599px) {
   .fc-timegrid-slot { height: 40px !important; }
 }
+
+/* Force background events to show their color */
+.fc-event[style*="background-color"],
+.fc-bg-event {
+  background-color: inherit !important;
+}
+
+.fc-bg-event {
+  opacity: 0.3; /* adjust transparency */
+}
