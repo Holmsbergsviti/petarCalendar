@@ -59,7 +59,8 @@ function getHallBackgroundEvents(start, end) {
         end: after6End,
         display: "background",
         allDay: false,
-        color: "rgba(220,38,38,0.2)"
+        color: "rgba(220,38,38,0.2)",
+        extendedProps: { isHall: true }
       });
     }
 
@@ -70,13 +71,31 @@ function getHallBackgroundEvents(start, end) {
         end: after6End,
         display: "background",
         allDay: false,
-        color: "rgba(245,158,11,0.2)"
+        color: "rgba(245,158,11,0.2)",
+        extendedProps: { isHall: true }
       });
     }
   }
 
   return events;
 }
+
+// --- After calendar.render() ---
+calendar.render();
+
+// Add hall backgrounds
+calendar.addEventSource(getHallBackgroundEvents(calendar.view.activeStart, calendar.view.activeEnd));
+
+// Update hall events when switching weeks
+calendar.on('datesSet', function() {
+  // Remove old hall events
+  calendar.getEvents().forEach(ev => {
+    if (ev.extendedProps && ev.extendedProps.isHall) ev.remove();
+  });
+  // Add new hall events
+  calendar.addEventSource(getHallBackgroundEvents(calendar.view.activeStart, calendar.view.activeEnd));
+});
+
 
 // --- Add hall events when calendar renders ---
 function renderHallAvailability() {
