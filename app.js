@@ -38,11 +38,13 @@ function getHallBackgroundEvents(start, end) {
   const events = [];
   const dayMs = 24 * 60 * 60 * 1000;
 
-  for (let d = new Date(start); d < end; d = new Date(d.getTime() + dayMs)) {
-    const day = d.getDay(); // 1=Mon ... 5=Fri
+  for (let ts = start.getTime(); ts < end.getTime(); ts += dayMs) {
+    const d = new Date(ts);
+    const day = d.getDay(); // 0=Sun, 1=Mon ... 5=Fri
 
     if (day === 0 || day === 6) continue; // skip weekends
 
+    // Create separate Date objects so we don't mutate `d`
     const after6Start = new Date(d);
     after6Start.setHours(18, 0, 0, 0);
 
