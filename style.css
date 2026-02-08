@@ -87,16 +87,6 @@ button {
   .fc-timegrid-slot { height: 40px !important; }
 }
 
-/* Force background events to show their color */
-.fc-event[style*="background-color"],
-.fc-bg-event {
-  background-color: inherit !important;
-}
-
-.fc-bg-event {
-  opacity: 0.3; /* adjust transparency */
-}
-
 /* Optional: lighten hall backgrounds */
 .fc-event[style*="rgba"] {
   opacity: 1 !important; /* FullCalendar uses inline RGBA, this keeps it */
