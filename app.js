@@ -21,6 +21,8 @@ const calendarEl = document.getElementById("calendar");
 let calendar;
 let selectedStart = null;
 let editingEvent = null;
+let longPressTimer = null;
+let longPressTriggered = false;
 
 const coachColors = {
   "Vlad": "#3b82f6",
@@ -80,7 +82,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return `${weekday} ${day}`;
     },
 
-    // ADD from calendar (PC)
+    // ADD FROM CALENDAR (PC)
     select: info => {
       if (window.innerWidth > 500) {
         selectedStart = info.start;
@@ -96,20 +98,54 @@ document.addEventListener("DOMContentLoaded", async () => {
       calendar.unselect();
     },
 
-    // EDIT
-    eventClick: info => {
-      editingEvent = info.event;
-      selectedStart = null;
+    // EVENTS (EDIT / LONG PRESS DELETE)
+    eventDidMount: info => {
+      const el = info.el;
 
-      const title = info.event.title.split(" (")[0];
-      const coaches = info.event.extendedProps.coaches;
+      // LONG PRESS (MOBILE DELETE)
+      el.addEventListener("touchstart", () => {
+        longPressTriggered = false;
 
-      titleInput.value = title;
-      lessonDateInput.valueAsDate = info.event.start;
-      lessonTimeInput.value = info.event.start.toTimeString().slice(0, 5);
-      setSelectedCoaches(coaches);
+        longPressTimer = setTimeout(async () => {
+          longPressTriggered = true;
 
-      modal.classList.remove("hidden");
+          const ok = confirm(`Delete "${info.event.title}"?`);
+          if (!ok) return;
+
+          try {
+            await deleteDoc(
+              doc(db, "lessons", info.event.extendedProps.docId)
+            );
+            info.event.remove();
+            alert("🗑 Lesson deleted");
+          } catch (e) {
+            console.error(e);
+            alert("❌ Failed to delete lesson");
+          }
+        }, 600);
+      });
+
+      el.addEventListener("touchend", () => {
+        clearTimeout(longPressTimer);
+      });
+
+      // TAP / CLICK = EDIT
+      el.addEventListener("click", () => {
+        if (longPressTriggered) return;
+
+        editingEvent = info.event;
+        selectedStart = null;
+
+        const title = info.event.title.split(" (")[0];
+        const coaches = info.event.extendedProps.coaches;
+
+        titleInput.value = title;
+        lessonDateInput.valueAsDate = info.event.start;
+        lessonTimeInput.value = info.event.start.toTimeString().slice(0, 5);
+        setSelectedCoaches(coaches);
+
+        modal.classList.remove("hidden");
+      });
     }
   });
 
@@ -135,7 +171,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  // MOBILE ADD
+  // MOBILE ADD BUTTON
   addLessonBtn.onclick = () => {
     editingEvent = null;
     selectedStart = null;
@@ -148,7 +184,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     modal.classList.remove("hidden");
   };
 
-  // SAVE (ADD or EDIT)
+  // SAVE (ADD / EDIT)
   saveBtn.onclick = async () => {
     const title = titleInput.value.trim();
     const coaches = getSelectedCoaches();
@@ -230,7 +266,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedStart = null;
   };
 
-  // DELETE (keyboard, safe)
+  // DELETE (PC)
   document.addEventListener("keydown", async e => {
     if (e.key === "Delete" && editingEvent) {
       const ok = confirm(`Delete "${editingEvent.title}"?`);
