@@ -24,22 +24,70 @@ const coachColors = {
   "Petar Boss": "#f59e0b"
 };
 
+/* ---------------- COLOR LOGIC ---------------- */
+
 function computeGradient(coaches){
   if (!coaches || coaches.length === 0) return "#999";
   if (coaches.length === 1) return coachColors[coaches[0]] || "#999";
   return `linear-gradient(135deg, ${coaches.map(c => coachColors[c]).join(",")})`;
 }
 
+/* ---------------- HALL AVAILABILITY (BACKGROUND ONLY) ---------------- */
+
+function getHallBackgroundEvents(start, end) {
+  const events = [];
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  for (let d = new Date(start); d < end; d = new Date(d.getTime() + dayMs)) {
+    const day = d.getDay(); // 1=Mon ... 5=Fri
+
+    if (day === 0 || day === 6) continue; // skip weekends
+
+    const after6Start = new Date(d);
+    after6Start.setHours(18, 0, 0, 0);
+
+    const after6End = new Date(d);
+    after6End.setHours(22, 0, 0, 0);
+
+    // Tue / Thu / Fri → only small hall free after 18:00
+    if ([2, 4, 5].includes(day)) {
+      events.push({
+        start: after6Start,
+        end: after6End,
+        display: "background",
+        backgroundColor: "rgba(245, 158, 11, 0.25)" // yellow
+      });
+    }
+
+    // Mon / Wed → both halls taken after 18:00
+    if ([1, 3].includes(day)) {
+      events.push({
+        start: after6Start,
+        end: after6End,
+        display: "background",
+        backgroundColor: "rgba(220, 38, 38, 0.25)" // red
+      });
+    }
+  }
+
+  return events;
+}
+
+/* ---------------- CALENDAR INIT ---------------- */
+
 document.addEventListener("DOMContentLoaded", async () => {
+
   calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: "timeGridWeek",
     firstDay: 1,
     selectable: true,
     nowIndicator: true,
+
     slotDuration: "00:15:00",
     slotLabelInterval: "01:00:00",
     slotMinTime: "09:00:00",
     slotMaxTime: "22:00:00",
+
     height: "auto",
 
     select: info => openModal(info.start),
@@ -49,11 +97,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       const coaches = info.event.extendedProps.coaches || [];
       info.el.style.background = computeGradient(coaches);
       info.el.style.border = "none";
+    },
+
+    // 🔹 inject hall availability when week changes
+    datesSet: info => {
+      calendar.getEvents()
+        .filter(e => e.display === "background")
+        .forEach(e => e.remove());
+
+      getHallBackgroundEvents(info.start, info.end)
+        .forEach(e => calendar.addEvent(e));
     }
   });
 
   calendar.render();
 
+  // Load lessons
   const snap = await getDocs(collection(db, "lessons"));
   snap.forEach(d => {
     const data = d.data();
@@ -66,6 +125,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 });
+
+/* ---------------- MODAL LOGIC ---------------- */
 
 function openModal(start, event = null){
   editingEvent = event;
@@ -88,18 +149,21 @@ function openModal(start, event = null){
   modal.classList.remove("hidden");
 }
 
+/* ---------------- SAVE / EDIT ---------------- */
+
 saveBtn.onclick = async () => {
   const title = titleInput.value.trim();
   const coaches = [...coachSelect.selectedOptions].map(o => o.value);
-  if(!title || coaches.length === 0) return alert("Fill all fields");
+  if (!title || coaches.length === 0) return alert("Fill all fields");
 
   const start = new Date(`${dateInput.value}T${timeInput.value}`);
   const end = new Date(start.getTime() + 45 * 60000);
 
-  if(editingEvent){
+  if (editingEvent) {
     await updateDoc(doc(db,"lessons", editingEvent.id), {
       title, coaches, start: start.toISOString(), end: end.toISOString()
     });
+
     editingEvent.setProp("title", title);
     editingEvent.setStart(start);
     editingEvent.setEnd(end);
@@ -108,6 +172,7 @@ saveBtn.onclick = async () => {
     const ref = await addDoc(collection(db,"lessons"), {
       title, coaches, start: start.toISOString(), end: end.toISOString()
     });
+
     calendar.addEvent({
       id: ref.id,
       title, start, end,
@@ -119,6 +184,8 @@ saveBtn.onclick = async () => {
   editingEvent = null;
 };
 
+/* ---------------- DELETE ---------------- */
+
 deleteBtn.onclick = async () => {
   await deleteDoc(doc(db,"lessons", editingEvent.id));
   editingEvent.remove();
@@ -126,9 +193,13 @@ deleteBtn.onclick = async () => {
   editingEvent = null;
 };
 
+/* ---------------- CANCEL ---------------- */
+
 cancelBtn.onclick = () => {
   modal.classList.add("hidden");
   editingEvent = null;
 };
+
+/* ---------------- MOBILE ADD BUTTON ---------------- */
 
 addBtn.onclick = () => openModal(new Date());

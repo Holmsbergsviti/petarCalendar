@@ -49,7 +49,6 @@ input, select {
 .modal-buttons {
   display: flex;
   gap: 10px;
-  margin-top: 10px;
 }
 
 button {
@@ -78,12 +77,12 @@ button {
   border: none;
 }
 
-/* Desktop smaller slots */
+/* Desktop */
 @media (min-width: 600px) {
   .fc-timegrid-slot { height: 20px !important; }
 }
 
-/* Mobile bigger slots */
+/* Mobile */
 @media (max-width: 599px) {
   .fc-timegrid-slot { height: 40px !important; }
 }
