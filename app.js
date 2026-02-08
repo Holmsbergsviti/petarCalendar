@@ -44,15 +44,16 @@ function getHallBackgroundEvents(start, end) {
 
     if (day === 0 || day === 6) continue; // skip weekends
 
-    // Create separate Date objects so we don't mutate `d`
-    const after6Start = new Date(d);
-    after6Start.setHours(18, 0, 0, 0);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const date = d.getDate();
 
-    const after6End = new Date(d);
-    after6End.setHours(22, 0, 0, 0);
+    // After 18:00 to 22:00
+    const after6Start = new Date(year, month, date, 18, 0);
+    const after6End = new Date(year, month, date, 22, 0);
 
-    // Tue / Thu / Fri → only small hall free after 18:00
     if ([2, 4, 5].includes(day)) {
+      // Tue / Thu / Fri → only small hall free
       events.push({
         start: after6Start,
         end: after6End,
@@ -61,8 +62,8 @@ function getHallBackgroundEvents(start, end) {
       });
     }
 
-    // Mon / Wed → both halls taken after 18:00
     if ([1, 3].includes(day)) {
+      // Mon / Wed → both halls taken
       events.push({
         start: after6Start,
         end: after6End,
