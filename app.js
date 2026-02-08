@@ -218,31 +218,38 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       end.setDate(end.getDate() + dayOffset);
       end.setHours(endHour,0,0,0);
       calendar.addEvent({
-        start, end,
+        start,
+        end,
         display:"background",
-        backgroundColor: color
+        backgroundColor: color,
+        borderColor: "transparent"
       });
     }
 
+    // Colors with transparency (RGBA)
+    const bothFree = "rgba(168, 230, 207, 0.4)"; // light green
+    const smallFree = "rgba(255, 249, 168, 0.4)"; // yellow
+    const bothTaken = "rgba(211, 211, 211, 0.4)"; // gray
+
     // Monday
-    addBackground(0, 9, 18, "#a8e6cf"); // both halls free
-    addBackground(0, 18, 22, "#d3d3d3"); // after 6pm both taken
+    addBackground(0, 9, 18, bothFree);
+    addBackground(0, 18, 22, bothTaken);
 
     // Tuesday
-    addBackground(1, 9, 18, "#a8e6cf"); // both free
-    addBackground(1, 18, 22, "#fff9a8"); // only small hall free
+    addBackground(1, 9, 18, bothFree);
+    addBackground(1, 18, 22, smallFree);
 
     // Wednesday
-    addBackground(2, 9, 18, "#a8e6cf"); // both free
-    addBackground(2, 18, 22, "#d3d3d3"); // both taken
+    addBackground(2, 9, 18, bothFree);
+    addBackground(2, 18, 22, bothTaken);
 
     // Thursday
-    addBackground(3, 9, 18, "#a8e6cf"); // both free
-    addBackground(3, 18, 22, "#fff9a8"); // only small hall free
+    addBackground(3, 9, 18, bothFree);
+    addBackground(3, 18, 22, smallFree);
 
     // Friday
-    addBackground(4, 9, 18, "#a8e6cf"); // both free
-    addBackground(4, 18, 22, "#fff9a8"); // only small hall free
+    addBackground(4, 9, 18, bothFree);
+    addBackground(4, 18, 22, smallFree);
   }
 
   addHallAvailability();
