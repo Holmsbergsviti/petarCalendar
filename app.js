@@ -34,6 +34,7 @@ function computeGradient(coaches){
 
 /* ---------------- HALL AVAILABILITY (BACKGROUND ONLY) ---------------- */
 
+// --- Hall availability background events ---
 function getHallBackgroundEvents(start, end) {
   const events = [];
   const dayMs = 24 * 60 * 60 * 1000;
@@ -48,35 +49,58 @@ function getHallBackgroundEvents(start, end) {
     const month = d.getMonth();
     const date = d.getDate();
 
-    // After 18:00 to 22:00
     const after6Start = new Date(year, month, date, 18, 0);
     const after6End = new Date(year, month, date, 22, 0);
 
-    // Light red for Mon/Wed after 6 PM
     if ([1, 3].includes(day)) {
+      // Mon/Wed → both halls taken → red
       events.push({
         start: after6Start,
         end: after6End,
         display: "background",
         allDay: false,
-        backgroundColor: "rgba(220,38,38,0.15)"  // red
+        color: "rgba(220,38,38,0.2)"
       });
     }
 
-    // Light yellow for Tue/Thu/Fri after 6 PM
     if ([2, 4, 5].includes(day)) {
+      // Tue/Thu/Fri → only small hall free → yellow
       events.push({
         start: after6Start,
         end: after6End,
         display: "background",
         allDay: false,
-        backgroundColor: "rgba(245,158,11,0.15)" // yellow
+        color: "rgba(245,158,11,0.2)"
       });
     }
   }
 
   return events;
 }
+
+// --- Add hall events when calendar renders ---
+function renderHallAvailability() {
+  // Remove previous hall events first
+  calendar.getEvents().forEach(ev => {
+    if (ev.extendedProps && ev.extendedProps.isHall) ev.remove();
+  });
+
+  const hallEvents = getHallBackgroundEvents(calendar.view.activeStart, calendar.view.activeEnd);
+  hallEvents.forEach(ev => {
+    calendar.addEvent({
+      ...ev,
+      extendedProps: { isHall: true } // mark it as hall event
+    });
+  });
+}
+
+// --- Call this after calendar.render() ---
+renderHallAvailability();
+
+// --- Update hall events when week changes ---
+calendar.on('datesSet', function() {
+  renderHallAvailability();
+});
 
 /* ---------------- CALENDAR INIT ---------------- */
 

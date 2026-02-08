@@ -96,3 +96,8 @@ button {
 .fc-bg-event {
   opacity: 0.3; /* adjust transparency */
 }
+
+/* Optional: lighten hall backgrounds */
+.fc-event[style*="rgba"] {
+  opacity: 1 !important; /* FullCalendar uses inline RGBA, this keeps it */
+}
