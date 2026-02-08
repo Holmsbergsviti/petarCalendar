@@ -58,7 +58,7 @@ function getHallBackgroundEvents(start, end) {
         start: after6Start,
         end: after6End,
         display: "background",
-        backgroundColor: "rgba(245, 158, 11, 0.25)" // yellow
+        color: "rgba(245, 158, 11, 0.25)" // yellow
       });
     }
 
@@ -68,7 +68,7 @@ function getHallBackgroundEvents(start, end) {
         start: after6Start,
         end: after6End,
         display: "background",
-        backgroundColor: "rgba(220, 38, 38, 0.25)" // red
+        color: "rgba(220, 38, 38, 0.25)" // red
       });
     }
   }
