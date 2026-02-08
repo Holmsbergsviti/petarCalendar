@@ -1,31 +1,30 @@
-body {
-  font-family: Arial, sans-serif;
-  background: #f2f2f2;
-  padding: 0;
+html, body {
   margin: 0;
-}
-
-h1 {
-  text-align: center;
-  margin: 10px 0;
+  padding: 0;
+  height: 100%;
+  font-family: system-ui, sans-serif;
 }
 
 #calendar {
-  max-width: 1200px;
-  margin: 0 auto;
-  background: white;
-  border-radius: 12px;
+  height: 100dvh;
+}
+
+/* Smaller boxes on PC */
+@media (min-width: 768px) {
+  .fc-timegrid-slot {
+    height: 22px !important;
+  }
 }
 
 /* Modal */
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 999;
 }
 
 .hidden {
@@ -34,90 +33,37 @@ h1 {
 
 .modal-content {
   background: white;
-  padding: 20px;
-  border-radius: 12px;
-  width: 320px;
-  max-width: 90%;
-  max-height: 90%;
-  overflow-y: auto;
-  box-sizing: border-box;
+  padding: 16px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 360px;
 }
 
-label {
+.modal-content label {
   display: block;
-  margin-bottom: 12px;
+  margin-top: 10px;
   font-size: 14px;
 }
 
-input, select {
+.modal-content input,
+.modal-content select {
   width: 100%;
-  max-width: 300px;
-  padding: 8px;
-  margin-top: 5px;
-  box-sizing: border-box;
+  padding: 6px;
+  margin-top: 4px;
 }
 
-.modal-buttons {
+.modal-actions {
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 button {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  background: #3b82f6;
-  color: white;
   flex: 1;
-  min-width: 100px;
+  padding: 8px;
 }
 
-button.secondary {
-  background: #999;
-}
-
-/* Floating Add Lesson Button */
-.floating-btn {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #3b82f6;
+button.danger {
+  background: #e53935;
   color: white;
-  border: none;
-  border-radius: 50%;
-  width: 60px;
-  height: 60px;
-  font-size: 28px;
-  cursor: pointer;
-  z-index: 1100;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Responsive for mobile */
-@media (max-width: 500px) {
-  .modal-content {
-    width: 90%;
-    padding: 15px;
-  }
-
-  .modal-buttons button {
-    flex: 1 1 45%;
-  }
-
-  .fc-timegrid-slot {
-    height: 40px !important;
-  }
-}
-
-/* PC slots smaller */
-@media (min-width: 501px) {
-  .fc-timegrid-slot {
-    height: 20px !important;
-  }
 }

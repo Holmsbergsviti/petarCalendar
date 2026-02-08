@@ -2,68 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Dance Lessons Calendar</title>
-  <link rel="icon" href="master_icon.jpg">
-  <!-- FullCalendar CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.11/index.global.min.css">
+  <title>Dance Schedule</title>
 
+  <link rel="icon" href="master_icon.jpg">
+
+  <!-- FullCalendar -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+  <!-- App -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>Dance Lessons Calendar</h1>
+  <div id="calendar"></div>
 
-<div id="calendar"></div>
+  <!-- Modal -->
+  <div id="lessonModal" class="modal hidden">
+    <div class="modal-content">
+      <h3 id="modalTitle">Lesson</h3>
 
-<!-- Modal -->
-<div id="lessonModal" class="modal hidden">
-  <div class="modal-content">
-    <h2>Lesson</h2>
+      <label>Title</label>
+      <input id="lessonTitle" placeholder="Lesson name">
 
-    <label>
-      Lesson name
-      <input id="lessonTitle" type="text" placeholder="Ballroom training">
-    </label>
+      <label>Coaches</label>
+      <select id="lessonCoach" multiple>
+        <option>Vlad</option>
+        <option>Anna</option>
+        <option>Mark</option>
+      </select>
 
-    <label>Coaches</label>
-    <div id="lessonCoach">
-      <label><input type="checkbox" value="Vlad"> Vlad</label><br>
-      <label><input type="checkbox" value="Ana"> Ana</label><br>
-      <label><input type="checkbox" value="Petar Boss"> Petar Boss</label>
-    </div>
+      <label>Start</label>
+      <input id="lessonStart" type="datetime-local">
 
-    <label>
-      Day
-      <input type="date" id="lessonDate">
-    </label>
+      <label>End</label>
+      <input id="lessonEnd" type="datetime-local">
 
-    <label>
-      Start time
-      <input type="time" id="lessonTime" value="09:00">
-    </label>
-
-    <div class="modal-buttons">
-      <button id="saveLesson">Save</button>
-      <button id="deleteLesson" class="secondary">Delete</button>
-      <button id="cancelLesson" class="secondary">Cancel</button>
+      <div class="modal-actions">
+        <button id="saveLesson">Save</button>
+        <button id="deleteLesson" class="danger">Delete</button>
+        <button id="closeModal">Cancel</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- Floating Add Lesson Button -->
-<button id="addLessonBtn" class="floating-btn">+</button>
-
-<!-- FullCalendar JS (GLOBAL build) -->
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.11/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@6.1.11/index.global.min.js"></script>
-
-<!-- Firebase -->
-<script type="module" src="firebase.js"></script>
-
-<!-- App -->
-<script type="module" src="app.js"></script>
-
+  <script src="app.js"></script>
 </body>
 </html>
