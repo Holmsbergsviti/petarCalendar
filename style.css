@@ -1,69 +1,89 @@
-html, body {
+body {
   margin: 0;
-  padding: 0;
-  height: 100%;
-  font-family: system-ui, sans-serif;
+  font-family: Arial, sans-serif;
+  background: #f2f2f2;
+}
+
+h1 {
+  text-align: center;
+  margin: 10px 0;
 }
 
 #calendar {
-  height: 100dvh;
-}
-
-/* Smaller boxes on PC */
-@media (min-width: 768px) {
-  .fc-timegrid-slot {
-    height: 22px !important;
-  }
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
 }
 
 /* Modal */
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.4);
+  background: rgba(0,0,0,.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
+  z-index: 1000;
 }
 
-.hidden {
-  display: none;
-}
+.hidden { display: none; }
 
 .modal-content {
   background: white;
-  padding: 16px;
-  border-radius: 10px;
-  width: 90%;
-  max-width: 360px;
+  padding: 20px;
+  border-radius: 12px;
+  width: 320px;
 }
 
-.modal-content label {
+label {
   display: block;
-  margin-top: 10px;
-  font-size: 14px;
+  margin-bottom: 12px;
 }
 
-.modal-content input,
-.modal-content select {
+input, select {
   width: 100%;
-  padding: 6px;
-  margin-top: 4px;
+  padding: 8px;
 }
 
-.modal-actions {
+.modal-buttons {
   display: flex;
-  gap: 8px;
-  margin-top: 14px;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 button {
   flex: 1;
   padding: 8px;
+  border-radius: 6px;
+  border: none;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
 }
 
-button.danger {
-  background: #e53935;
+.secondary { background: #999; }
+.danger { background: #dc2626; }
+
+.floating-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  font-size: 30px;
+  background: #3b82f6;
   color: white;
+  border: none;
+}
+
+/* Desktop smaller slots */
+@media (min-width: 600px) {
+  .fc-timegrid-slot { height: 20px !important; }
+}
+
+/* Mobile bigger slots */
+@media (max-width: 599px) {
+  .fc-timegrid-slot { height: 40px !important; }
 }
