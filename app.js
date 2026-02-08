@@ -1,40 +1,23 @@
-import {
-  collection, addDoc, getDocs,
-  updateDoc, deleteDoc, doc
-} from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 import { db } from "./firebase.js";
 
 const modal = document.getElementById("lessonModal");
 const titleInput = document.getElementById("lessonTitle");
 const coachSelect = document.getElementById("lessonCoach");
-const dateInput = document.getElementById("lessonDate");
-const timeInput = document.getElementById("lessonTime");
+const lessonDateInput = document.getElementById("lessonDate");
+const lessonTimeInput = document.getElementById("lessonTime");
 const saveBtn = document.getElementById("saveLesson");
-const deleteBtn = document.getElementById("deleteLesson");
 const cancelBtn = document.getElementById("cancelLesson");
-const addBtn = document.getElementById("addLessonBtn");
+const addLessonBtn = document.getElementById("addLessonBtn");
 const calendarEl = document.getElementById("calendar");
 
 let calendar;
-let editingEvent = null;
+let selectedEvent = null; // for editing
+let selectedStart = null;
 
-const coachColors = {
-  Vlad: "#3b82f6",
-  Ana: "#10b981",
-  "Petar Boss": "#f59e0b"
-};
+const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
 
-/* ---------------- COLOR LOGIC ---------------- */
-
-function computeGradient(coaches){
-  if (!coaches || coaches.length === 0) return "#999";
-  if (coaches.length === 1) return coachColors[coaches[0]] || "#999";
-  return `linear-gradient(135deg, ${coaches.map(c => coachColors[c]).join(",")})`;
-}
-
-/* ---------------- HALL AVAILABILITY (BACKGROUND ONLY) ---------------- */
-
-// --- Hall availability background events ---
+// -------- Hall Availability --------
 function getHallBackgroundEvents(start, end) {
   const events = [];
   const dayMs = 24 * 60 * 60 * 1000;
@@ -53,7 +36,6 @@ function getHallBackgroundEvents(start, end) {
     const after6End = new Date(year, month, date, 22, 0);
 
     if ([1, 3].includes(day)) {
-      // Mon/Wed → both halls taken → red
       events.push({
         start: after6Start,
         end: after6End,
@@ -65,7 +47,6 @@ function getHallBackgroundEvents(start, end) {
     }
 
     if ([2, 4, 5].includes(day)) {
-      // Tue/Thu/Fri → only small hall free → yellow
       events.push({
         start: after6Start,
         end: after6End,
@@ -80,174 +61,176 @@ function getHallBackgroundEvents(start, end) {
   return events;
 }
 
-// --- After calendar.render() ---
-calendar.render();
-
-// Add hall backgrounds
-calendar.addEventSource(getHallBackgroundEvents(calendar.view.activeStart, calendar.view.activeEnd));
-
-// Update hall events when switching weeks
-calendar.on('datesSet', function() {
+function renderHallAvailability() {
   // Remove old hall events
   calendar.getEvents().forEach(ev => {
     if (ev.extendedProps && ev.extendedProps.isHall) ev.remove();
   });
   // Add new hall events
-  calendar.addEventSource(getHallBackgroundEvents(calendar.view.activeStart, calendar.view.activeEnd));
-});
-
-
-// --- Add hall events when calendar renders ---
-function renderHallAvailability() {
-  // Remove previous hall events first
-  calendar.getEvents().forEach(ev => {
-    if (ev.extendedProps && ev.extendedProps.isHall) ev.remove();
-  });
-
   const hallEvents = getHallBackgroundEvents(calendar.view.activeStart, calendar.view.activeEnd);
   hallEvents.forEach(ev => {
-    calendar.addEvent({
-      ...ev,
-      extendedProps: { isHall: true } // mark it as hall event
-    });
+    calendar.addEvent(ev);
   });
 }
 
-// --- Call this after calendar.render() ---
-renderHallAvailability();
+// -------- Format Ordinals --------
+function formatOrdinal(n){
+  if(n>3 && n<21) return n+"th";
+  switch(n%10){case 1: return n+"st"; case 2: return n+"nd"; case 3: return n+"rd"; default: return n+"th";}
+}
 
-// --- Update hall events when week changes ---
-calendar.on('datesSet', function() {
-  renderHallAvailability();
-});
+// -------- Initialize Calendar --------
+document.addEventListener("DOMContentLoaded", async ()=>{
 
-/* ---------------- CALENDAR INIT ---------------- */
+  calendar = new FullCalendar.Calendar(calendarEl,{
+    initialView:"timeGridWeek",
+    firstDay:1,
+    selectable:true,
+    selectMirror:true,
+    nowIndicator:true,
+    headerToolbar:{left:"prev,next today",center:"title",right:"timeGridDay,timeGridWeek"},
+    slotMinTime:"09:00:00",
+    slotMaxTime:"22:00:00",
+    slotDuration:"00:15:00",
+    slotLabelInterval:"01:00:00",
+    height:'auto',
+    contentHeight:'auto',
 
-document.addEventListener("DOMContentLoaded", async () => {
-
-  calendar = new FullCalendar.Calendar(calendarEl, {
-    initialView: "timeGridWeek",
-    firstDay: 1,
-    selectable: true,
-    nowIndicator: true,
-
-    slotDuration: "00:15:00",
-    slotLabelInterval: "01:00:00",
-    slotMinTime: "09:00:00",
-    slotMaxTime: "22:00:00",
-
-    height: "auto",
-
-    select: info => openModal(info.start),
-    eventClick: info => openModal(null, info.event),
-
-    eventDidMount: info => {
-      const coaches = info.event.extendedProps.coaches || [];
-      info.el.style.background = computeGradient(coaches);
-      info.el.style.border = "none";
+    dayHeaderContent: arg => {
+      const weekday = arg.date.toLocaleDateString("en-GB",{ weekday: "long" });
+      const day = formatOrdinal(arg.date.getDate());
+      return `${weekday} ${day}`;
     },
 
-    // 🔹 inject hall availability when week changes
-    datesSet: info => {
-      calendar.getEvents()
-        .filter(e => e.display === "background")
-        .forEach(e => e.remove());
+    select: info => {
+      if(window.innerWidth > 500){ // desktop
+        selectedStart = info.start;
+        selectedEvent = null;
+        titleInput.value = "";
+        lessonDateInput.valueAsDate = info.start;
+        lessonTimeInput.value = info.start.toTimeString().slice(0,5);
+        modal.classList.remove("hidden");
+      }
+      calendar.unselect();
+    },
 
-      getHallBackgroundEvents(info.start, info.end)
-        .forEach(e => calendar.addEvent(e));
+    eventClick: info => {
+      selectedEvent = info.event;
+      titleInput.value = selectedEvent.title.split(" (")[0];
+      lessonDateInput.valueAsDate = new Date(selectedEvent.start);
+      lessonTimeInput.value = selectedEvent.start.toTimeString().slice(0,5);
+      coachSelect.value = selectedEvent.extendedProps.coach || "Vlad";
+      modal.classList.remove("hidden");
+    },
+
+    eventTouchStart: info => {
+      let timer = setTimeout(async ()=>{
+        if(confirm(`Delete lesson "${info.event.title}"?`)){
+          const lessonId = info.event.extendedProps.docId;
+          if(lessonId) await deleteDoc(doc(db,"lessons",lessonId));
+          info.event.remove();
+          alert("🗑 Lesson deleted");
+        }
+      }, 800); // long press
+      info.jsEvent.addEventListener("touchend", ()=>clearTimeout(timer));
     }
   });
 
   calendar.render();
 
+  // Render hall backgrounds
+  renderHallAvailability();
+
+  // Update hall events when week changes
+  calendar.on('datesSet', () => renderHallAvailability());
+
   // Load lessons
-  const snap = await getDocs(collection(db, "lessons"));
-  snap.forEach(d => {
-    const data = d.data();
+  const snapshot = await getDocs(collection(db,"lessons"));
+  snapshot.forEach(docSnap=>{
+    const d = docSnap.data();
     calendar.addEvent({
-      id: d.id,
-      title: data.title,
-      start: data.start,
-      end: data.end,
-      extendedProps: { coaches: data.coaches }
+      title:`${d.title} (${d.coach})`,
+      start:d.start,
+      end:d.end,
+      backgroundColor:coachColors[d.coach]||"#999",
+      borderColor:coachColors[d.coach]||"#999",
+      extendedProps:{docId:docSnap.id, coach:d.coach}
     });
   });
-});
 
-/* ---------------- MODAL LOGIC ---------------- */
-
-function openModal(start, event = null){
-  editingEvent = event;
-  deleteBtn.classList.toggle("hidden", !event);
-
-  if(event){
-    titleInput.value = event.title;
-    dateInput.valueAsDate = new Date(event.start);
-    timeInput.value = event.start.toTimeString().slice(0,5);
-    [...coachSelect.options].forEach(o =>
-      o.selected = event.extendedProps.coaches.includes(o.value)
-    );
-  } else {
+  // Mobile floating add button
+  addLessonBtn.onclick = () => {
+    const now = new Date();
+    lessonDateInput.valueAsDate = now;
+    lessonTimeInput.value = "09:00";
     titleInput.value = "";
-    dateInput.valueAsDate = start;
-    timeInput.value = start.toTimeString().slice(0,5);
-    coachSelect.selectedIndex = -1;
-  }
+    selectedStart = null;
+    selectedEvent = null;
+    modal.classList.remove("hidden");
+  };
 
-  modal.classList.remove("hidden");
-}
+  // Save lesson
+  saveBtn.onclick = async () => {
+    const title = titleInput.value.trim();
+    const coach = coachSelect.value;
+    if (!title) { alert("Enter lesson name"); return; }
 
-/* ---------------- SAVE / EDIT ---------------- */
+    let start;
+    if(selectedEvent){
+      // Editing
+      start = new Date(lessonDateInput.value);
+      const [h,m] = lessonTimeInput.value.split(":").map(Number);
+      start.setHours(h,m);
+      const end = new Date(start.getTime() + 45*60000);
 
-saveBtn.onclick = async () => {
-  const title = titleInput.value.trim();
-  const coaches = [...coachSelect.selectedOptions].map(o => o.value);
-  if (!title || coaches.length === 0) return alert("Fill all fields");
+      try {
+        const lessonId = selectedEvent.extendedProps.docId;
+        if(lessonId) await updateDoc(doc(db,"lessons",lessonId), {title, coach, start:start.toISOString(), end:end.toISOString()});
+        selectedEvent.setProp("title", `${title} (${coach})`);
+        selectedEvent.setStart(start);
+        selectedEvent.setEnd(end);
+        selectedEvent.setProp("backgroundColor", coachColors[coach]);
+        selectedEvent.setProp("borderColor", coachColors[coach]);
+        selectedEvent.setExtendedProp("coach", coach);
+        alert("✅ Lesson updated");
+      } catch(e){ console.error(e); alert("❌ Failed to update"); }
+      modal.classList.add("hidden");
+      selectedEvent = null;
+      return;
+    }
 
-  const start = new Date(`${dateInput.value}T${timeInput.value}`);
-  const end = new Date(start.getTime() + 45 * 60000);
+    // Adding new lesson
+    if(selectedStart){
+      start = selectedStart;
+    } else {
+      const dateParts = lessonDateInput.value.split("-");
+      const [year, month, day] = dateParts.map(Number);
+      const [hour, minute] = lessonTimeInput.value.split(":").map(Number);
+      start = new Date(year, month-1, day, hour, minute);
+    }
+    const end = new Date(start.getTime() + 45*60000);
 
-  if (editingEvent) {
-    await updateDoc(doc(db,"lessons", editingEvent.id), {
-      title, coaches, start: start.toISOString(), end: end.toISOString()
-    });
+    try {
+      const docRef = await addDoc(collection(db,"lessons"), {title, coach, start:start.toISOString(), end:end.toISOString()});
+      calendar.addEvent({
+        title:`${title} (${coach})`,
+        start,
+        end,
+        backgroundColor:coachColors[coach],
+        borderColor:coachColors[coach],
+        extendedProps:{docId:docRef.id, coach}
+      });
+      alert("✅ Lesson added");
+      modal.classList.add("hidden");
+      selectedStart = null;
+    } catch(e){ console.error(e); alert("❌ Failed to add lesson"); }
+  };
 
-    editingEvent.setProp("title", title);
-    editingEvent.setStart(start);
-    editingEvent.setEnd(end);
-    editingEvent.setExtendedProp("coaches", coaches);
-  } else {
-    const ref = await addDoc(collection(db,"lessons"), {
-      title, coaches, start: start.toISOString(), end: end.toISOString()
-    });
+  // Cancel modal
+  cancelBtn.onclick = ()=> {
+    modal.classList.add("hidden");
+    selectedEvent = null;
+    selectedStart = null;
+  };
 
-    calendar.addEvent({
-      id: ref.id,
-      title, start, end,
-      extendedProps: { coaches }
-    });
-  }
-
-  modal.classList.add("hidden");
-  editingEvent = null;
-};
-
-/* ---------------- DELETE ---------------- */
-
-deleteBtn.onclick = async () => {
-  await deleteDoc(doc(db,"lessons", editingEvent.id));
-  editingEvent.remove();
-  modal.classList.add("hidden");
-  editingEvent = null;
-};
-
-/* ---------------- CANCEL ---------------- */
-
-cancelBtn.onclick = () => {
-  modal.classList.add("hidden");
-  editingEvent = null;
-};
-
-/* ---------------- MOBILE ADD BUTTON ---------------- */
-
-addBtn.onclick = () => openModal(new Date());
+});
