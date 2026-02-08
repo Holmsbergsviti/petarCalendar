@@ -3,6 +3,7 @@ import {
   addDoc,
   getDocs,
   deleteDoc,
+  updateDoc,
   doc
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
@@ -37,6 +38,24 @@ function formatOrdinal(n) {
   }
 }
 
+function getSelectedCoaches() {
+  return [...document.querySelectorAll("#lessonCoaches input")]
+    .filter(c => c.checked)
+    .map(c => c.value);
+}
+
+function setSelectedCoaches(coaches) {
+  document.querySelectorAll("#lessonCoaches input").forEach(c => {
+    c.checked = coaches.includes(c.value);
+  });
+}
+
+function getEventColor(coaches) {
+  return coaches.length === 1
+    ? coachColors[coaches[0]]
+    : "#8b5cf6";
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
 
   calendar = new FullCalendar.Calendar(calendarEl, {
@@ -61,92 +80,121 @@ document.addEventListener("DOMContentLoaded", async () => {
       return `${weekday} ${day}`;
     },
 
+    // ADD from calendar (PC)
     select: info => {
       if (window.innerWidth > 500) {
         selectedStart = info.start;
         editingEvent = null;
+
         titleInput.value = "";
         lessonDateInput.valueAsDate = info.start;
         lessonTimeInput.value = info.start.toTimeString().slice(0, 5);
+        setSelectedCoaches([]);
+
         modal.classList.remove("hidden");
       }
       calendar.unselect();
     },
 
+    // EDIT
     eventClick: info => {
       editingEvent = info.event;
       selectedStart = null;
-      titleInput.value = info.event.title.split(" (")[0];
+
+      const title = info.event.title.split(" (")[0];
+      const coaches = info.event.extendedProps.coaches;
+
+      titleInput.value = title;
+      lessonDateInput.valueAsDate = info.event.start;
+      lessonTimeInput.value = info.event.start.toTimeString().slice(0, 5);
+      setSelectedCoaches(coaches);
+
       modal.classList.remove("hidden");
     }
   });
 
   calendar.render();
 
-  // Load lessons from Firestore
+  // LOAD FROM FIRESTORE
   const snapshot = await getDocs(collection(db, "lessons"));
   snapshot.forEach(docSnap => {
     const d = docSnap.data();
     const coaches = d.coaches || [d.coach];
+    const color = getEventColor(coaches);
 
     calendar.addEvent({
       title: `${d.title} (${coaches.join(", ")})`,
       start: d.start,
       end: d.end,
-      backgroundColor:
-        coaches.length === 1 ? coachColors[coaches[0]] : "#8b5cf6",
-      borderColor:
-        coaches.length === 1 ? coachColors[coaches[0]] : "#8b5cf6",
-      extendedProps: { docId: docSnap.id }
+      backgroundColor: color,
+      borderColor: color,
+      extendedProps: {
+        docId: docSnap.id,
+        coaches
+      }
     });
   });
 
-  // Floating button (mobile add)
+  // MOBILE ADD
   addLessonBtn.onclick = () => {
     editingEvent = null;
     selectedStart = null;
+
     titleInput.value = "";
     lessonDateInput.valueAsDate = new Date();
     lessonTimeInput.value = "09:00";
+    setSelectedCoaches([]);
+
     modal.classList.remove("hidden");
   };
 
-  // SAVE
+  // SAVE (ADD or EDIT)
   saveBtn.onclick = async () => {
     const title = titleInput.value.trim();
-
-    const coaches = [...document.querySelectorAll("#lessonCoaches input")]
-      .filter(c => c.checked)
-      .map(c => c.value);
+    const coaches = getSelectedCoaches();
 
     if (!title || coaches.length === 0) {
       alert("Enter lesson name and select coach");
       return;
     }
 
-    let start;
-
-    if (editingEvent) {
-      start = new Date(editingEvent.start);
-    } else if (selectedStart) {
-      start = selectedStart;
-    } else {
-      const [y, m, d] = lessonDateInput.value.split("-").map(Number);
-      const [h, min] = lessonTimeInput.value.split(":").map(Number);
-      start = new Date(y, m - 1, d, h, min);
-    }
-
+    const [y, m, d] = lessonDateInput.value.split("-").map(Number);
+    const [h, min] = lessonTimeInput.value.split(":").map(Number);
+    const start = new Date(y, m - 1, d, h, min);
     const end = new Date(start.getTime() + 45 * 60000);
 
+    const color = getEventColor(coaches);
+
+    // EDIT
     if (editingEvent) {
-      editingEvent.setProp("title", `${title} (${coaches.join(", ")})`);
-      editingEvent.setDates(start, end);
-      editingEvent = null;
-      modal.classList.add("hidden");
-      alert("✏️ Lesson updated");
+      try {
+        await updateDoc(
+          doc(db, "lessons", editingEvent.extendedProps.docId),
+          {
+            title,
+            coaches,
+            start: start.toISOString(),
+            end: end.toISOString()
+          }
+        );
+
+        editingEvent.setProp("title", `${title} (${coaches.join(", ")})`);
+        editingEvent.setDates(start, end);
+        editingEvent.setExtendedProp("coaches", coaches);
+        editingEvent.setProp("backgroundColor", color);
+        editingEvent.setProp("borderColor", color);
+
+        editingEvent = null;
+        modal.classList.add("hidden");
+        alert("✏️ Lesson updated");
+      } catch (e) {
+        console.error(e);
+        alert("❌ Failed to update lesson");
+      }
       return;
     }
 
+    // ADD
     try {
       const docRef = await addDoc(collection(db, "lessons"), {
         title,
@@ -159,11 +207,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         title: `${title} (${coaches.join(", ")})`,
         start,
         end,
-        backgroundColor:
-          coaches.length === 1 ? coachColors[coaches[0]] : "#8b5cf6",
-        borderColor:
-          coaches.length === 1 ? coachColors[coaches[0]] : "#8b5cf6",
-        extendedProps: { docId: docRef.id }
+        backgroundColor: color,
+        borderColor: color,
+        extendedProps: {
+          docId: docRef.id,
+          coaches
+        }
       });
 
       modal.classList.add("hidden");
@@ -171,7 +220,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       alert("✅ Lesson added");
     } catch (e) {
       console.error(e);
-      alert("❌ Failed to save lesson");
+      alert("❌ Failed to add lesson");
     }
   };
 
@@ -181,7 +230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedStart = null;
   };
 
-  // DELETE
+  // DELETE (keyboard, safe)
   document.addEventListener("keydown", async e => {
     if (e.key === "Delete" && editingEvent) {
       const ok = confirm(`Delete "${editingEvent.title}"?`);
