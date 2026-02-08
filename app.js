@@ -8,7 +8,7 @@ const lessonTimeInput = document.getElementById("lessonTime");
 const saveBtn = document.getElementById("saveLesson");
 const cancelBtn = document.getElementById("cancelLesson");
 const addLessonBtn = document.getElementById("addLessonBtn");
-const coachSelect = document.getElementById("lessonCoach");
+const coachContainer = document.getElementById("lessonCoach");
 const calendarEl = document.getElementById("calendar");
 
 let calendar;
@@ -28,10 +28,12 @@ function isMobile() {
   return window.matchMedia("(pointer: coarse)").matches;
 }
 
+// Get selected coaches from checkboxes
 function getSelectedCoaches() {
-  return Array.from(coachSelect.selectedOptions).map(opt => opt.value);
+  return Array.from(coachContainer.querySelectorAll("input[type=checkbox]:checked")).map(cb => cb.value);
 }
 
+// Open modal for adding/editing
 function openLessonModal(start, event=null) {
   selectedStart = start || null;
   editingEvent = event;
@@ -40,13 +42,14 @@ function openLessonModal(start, event=null) {
   lessonDateInput.valueAsDate = event ? event.start : (start || new Date());
   lessonTimeInput.value = event ? event.start.toTimeString().slice(0,5) : "09:00";
 
-  // Populate coaches for group lessons
+  // Populate checkboxes for group lessons
+  const checkboxes = coachContainer.querySelectorAll("input[type=checkbox]");
   if(event){
     const coaches = Array.isArray(event.extendedProps.coach) ? event.extendedProps.coach : [event.extendedProps.coach];
-    Array.from(coachSelect.options).forEach(opt => opt.selected = coaches.includes(opt.value));
+    checkboxes.forEach(cb => cb.checked = coaches.includes(cb.value));
   } else {
-    Array.from(coachSelect.options).forEach(opt => opt.selected = false);
-    coachSelect.querySelector("option[value='Vlad']").selected = true;
+    checkboxes.forEach(cb => cb.checked = false);
+    coachContainer.querySelector("input[value='Vlad']").checked = true;
   }
 
   modal.classList.remove("hidden");
