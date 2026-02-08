@@ -12,7 +12,7 @@ const addLessonBtn = document.getElementById("addLessonBtn");
 const calendarEl = document.getElementById("calendar");
 
 let calendar;
-let selectedEvent = null; // for editing
+let selectedEvent = null;
 let selectedStart = null;
 
 const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
@@ -24,14 +24,13 @@ function getHallBackgroundEvents(start, end) {
 
   for (let ts = start.getTime(); ts < end.getTime(); ts += dayMs) {
     const d = new Date(ts);
-    const day = d.getDay(); // 0=Sun, 1=Mon ... 5=Fri
+    const day = d.getDay();
 
-    if (day === 0 || day === 6) continue; // skip weekends
+    if (day === 0 || day === 6) continue;
 
     const year = d.getFullYear();
     const month = d.getMonth();
     const date = d.getDate();
-
     const after6Start = new Date(year, month, date, 18, 0);
     const after6End = new Date(year, month, date, 22, 0);
 
@@ -62,21 +61,26 @@ function getHallBackgroundEvents(start, end) {
 }
 
 function renderHallAvailability() {
-  // Remove old hall events
   calendar.getEvents().forEach(ev => {
     if (ev.extendedProps && ev.extendedProps.isHall) ev.remove();
   });
-  // Add new hall events
   const hallEvents = getHallBackgroundEvents(calendar.view.activeStart, calendar.view.activeEnd);
-  hallEvents.forEach(ev => {
-    calendar.addEvent(ev);
-  });
+  hallEvents.forEach(ev => calendar.addEvent(ev));
 }
 
-// -------- Format Ordinals --------
+// -------- Helpers --------
 function formatOrdinal(n){
   if(n>3 && n<21) return n+"th";
   switch(n%10){case 1: return n+"st"; case 2: return n+"nd"; case 3: return n+"rd"; default: return n+"th";}
+}
+
+function getEventColor(coachList) {
+  if (Array.isArray(coachList)) {
+    const colors = coachList.map(c => coachColors[c] || "#999");
+    return `linear-gradient(90deg, ${colors.join(", ")})`;
+  } else {
+    return coachColors[coachList] || "#999";
+  }
 }
 
 // -------- Initialize Calendar --------
@@ -103,7 +107,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     },
 
     select: info => {
-      if(window.innerWidth > 500){ // desktop
+      if(window.innerWidth > 500){ 
         selectedStart = info.start;
         selectedEvent = null;
         titleInput.value = "";
@@ -116,10 +120,12 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
     eventClick: info => {
       selectedEvent = info.event;
-      titleInput.value = selectedEvent.title.split(" (")[0];
+      const titleParts = selectedEvent.title.match(/^(.*) \((.*)\)$/);
+      titleInput.value = titleParts ? titleParts[1] : selectedEvent.title;
       lessonDateInput.valueAsDate = new Date(selectedEvent.start);
       lessonTimeInput.value = selectedEvent.start.toTimeString().slice(0,5);
-      coachSelect.value = selectedEvent.extendedProps.coach || "Vlad";
+      const coachVal = titleParts ? titleParts[2].split(", ") : ["Vlad"];
+      coachSelect.value = coachVal.length === 1 ? coachVal[0] : "Vlad"; // default single selection for now
       modal.classList.remove("hidden");
     },
 
@@ -131,17 +137,13 @@ document.addEventListener("DOMContentLoaded", async ()=>{
           info.event.remove();
           alert("🗑 Lesson deleted");
         }
-      }, 800); // long press
+      }, 800);
       info.jsEvent.addEventListener("touchend", ()=>clearTimeout(timer));
     }
   });
 
   calendar.render();
-
-  // Render hall backgrounds
   renderHallAvailability();
-
-  // Update hall events when week changes
   calendar.on('datesSet', () => renderHallAvailability());
 
   // Load lessons
@@ -149,11 +151,11 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   snapshot.forEach(docSnap=>{
     const d = docSnap.data();
     calendar.addEvent({
-      title:`${d.title} (${d.coach})`,
+      title: Array.isArray(d.coach) ? `${d.title} (${d.coach.join(", ")})` : `${d.title} (${d.coach})`,
       start:d.start,
       end:d.end,
-      backgroundColor:coachColors[d.coach]||"#999",
-      borderColor:coachColors[d.coach]||"#999",
+      backgroundColor: getEventColor(d.coach),
+      borderColor: getEventColor(d.coach),
       extendedProps:{docId:docSnap.id, coach:d.coach}
     });
   });
@@ -172,13 +174,12 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   // Save lesson
   saveBtn.onclick = async () => {
     const title = titleInput.value.trim();
-    const coach = coachSelect.value;
+    let coach = coachSelect.value;
     if (!title) { alert("Enter lesson name"); return; }
 
-    let start;
+    // For editing
     if(selectedEvent){
-      // Editing
-      start = new Date(lessonDateInput.value);
+      const start = new Date(lessonDateInput.value);
       const [h,m] = lessonTimeInput.value.split(":").map(Number);
       start.setHours(h,m);
       const end = new Date(start.getTime() + 45*60000);
@@ -186,11 +187,11 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       try {
         const lessonId = selectedEvent.extendedProps.docId;
         if(lessonId) await updateDoc(doc(db,"lessons",lessonId), {title, coach, start:start.toISOString(), end:end.toISOString()});
-        selectedEvent.setProp("title", `${title} (${coach})`);
+        selectedEvent.setProp("title", Array.isArray(coach) ? `${title} (${coach.join(", ")})` : `${title} (${coach})`);
         selectedEvent.setStart(start);
         selectedEvent.setEnd(end);
-        selectedEvent.setProp("backgroundColor", coachColors[coach]);
-        selectedEvent.setProp("borderColor", coachColors[coach]);
+        selectedEvent.setProp("backgroundColor", getEventColor(coach));
+        selectedEvent.setProp("borderColor", getEventColor(coach));
         selectedEvent.setExtendedProp("coach", coach);
         alert("✅ Lesson updated");
       } catch(e){ console.error(e); alert("❌ Failed to update"); }
@@ -199,7 +200,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       return;
     }
 
-    // Adding new lesson
+    // Adding new
+    let start;
     if(selectedStart){
       start = selectedStart;
     } else {
@@ -213,11 +215,11 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     try {
       const docRef = await addDoc(collection(db,"lessons"), {title, coach, start:start.toISOString(), end:end.toISOString()});
       calendar.addEvent({
-        title:`${title} (${coach})`,
+        title: Array.isArray(coach) ? `${title} (${coach.join(", ")})` : `${title} (${coach})`,
         start,
         end,
-        backgroundColor:coachColors[coach],
-        borderColor:coachColors[coach],
+        backgroundColor: getEventColor(coach),
+        borderColor: getEventColor(coach),
         extendedProps:{docId:docRef.id, coach}
       });
       alert("✅ Lesson added");
@@ -227,7 +229,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   };
 
   // Cancel modal
-  cancelBtn.onclick = ()=> {
+  cancelBtn.onclick = () => {
     modal.classList.add("hidden");
     selectedEvent = null;
     selectedStart = null;
