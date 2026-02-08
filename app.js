@@ -202,4 +202,49 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     selectedEvent = null;
   };
 
+  // ------------------------------
+  // HALL AVAILABILITY BACKGROUNDS
+  function addHallAvailability(){
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Monday
+    startOfWeek.setHours(0,0,0,0);
+
+    function addBackground(dayOffset, startHour, endHour, color){
+      const start = new Date(startOfWeek);
+      start.setDate(start.getDate() + dayOffset);
+      start.setHours(startHour,0,0,0);
+      const end = new Date(startOfWeek);
+      end.setDate(end.getDate() + dayOffset);
+      end.setHours(endHour,0,0,0);
+      calendar.addEvent({
+        start, end,
+        display:"background",
+        backgroundColor: color
+      });
+    }
+
+    // Monday
+    addBackground(0, 9, 18, "#a8e6cf"); // both halls free
+    addBackground(0, 18, 22, "#d3d3d3"); // after 6pm both taken
+
+    // Tuesday
+    addBackground(1, 9, 18, "#a8e6cf"); // both free
+    addBackground(1, 18, 22, "#fff9a8"); // only small hall free
+
+    // Wednesday
+    addBackground(2, 9, 18, "#a8e6cf"); // both free
+    addBackground(2, 18, 22, "#d3d3d3"); // both taken
+
+    // Thursday
+    addBackground(3, 9, 18, "#a8e6cf"); // both free
+    addBackground(3, 18, 22, "#fff9a8"); // only small hall free
+
+    // Friday
+    addBackground(4, 9, 18, "#a8e6cf"); // both free
+    addBackground(4, 18, 22, "#fff9a8"); // only small hall free
+  }
+
+  addHallAvailability();
+
 });
