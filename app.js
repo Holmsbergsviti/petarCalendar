@@ -52,23 +52,25 @@ function getHallBackgroundEvents(start, end) {
     const after6Start = new Date(year, month, date, 18, 0);
     const after6End = new Date(year, month, date, 22, 0);
 
-    if ([2, 4, 5].includes(day)) {
-      // Tue / Thu / Fri → only small hall free
+    // Light red for Mon/Wed after 6 PM
+    if ([1, 3].includes(day)) {
       events.push({
         start: after6Start,
         end: after6End,
         display: "background",
-        color: "rgba(245, 158, 11, 0.25)" // yellow
+        allDay: false,
+        backgroundColor: "rgba(220, 38, 38, 0.15)"
       });
     }
 
-    if ([1, 3].includes(day)) {
-      // Mon / Wed → both halls taken
+    // Light yellow for Tue/Thu/Fri after 6 PM
+    if ([2, 4, 5].includes(day)) {
       events.push({
         start: after6Start,
         end: after6End,
         display: "background",
-        color: "rgba(220, 38, 38, 0.25)" // red
+        allDay: false,
+        backgroundColor: "rgba(245, 158, 11, 0.15)"
       });
     }
   }
