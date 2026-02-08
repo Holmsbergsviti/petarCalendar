@@ -7,6 +7,7 @@ const lessonDateInput = document.getElementById("lessonDate");
 const lessonTimeInput = document.getElementById("lessonTime");
 const saveBtn = document.getElementById("saveLesson");
 const cancelBtn = document.getElementById("cancelLesson");
+const deleteBtn = document.getElementById("deleteLesson");
 const addLessonBtn = document.getElementById("addLessonBtn");
 const coachContainer = document.getElementById("lessonCoach");
 const calendarEl = document.getElementById("calendar");
@@ -67,7 +68,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     slotDuration: "00:15:00",
     slotLabelInterval: "01:00",
     height: "auto",
-
     headerToolbar: { left: "prev,next today", center: "title", right: "timeGridDay,timeGridWeek" },
 
     dayHeaderContent: arg => {
@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   snapshot.forEach(docSnap => {
     const d = docSnap.data();
     const coaches = Array.isArray(d.coach) ? d.coach : [d.coach];
-    const color = coachColors[coaches[0]] || "#999";
+    const color = coaches.length === 1 ? coachColors[coaches[0]] : `linear-gradient(to right, ${coaches.map(c=>coachColors[c]||"#999").join(",")})`;
     calendar.addEvent({
       title: `${d.title} (${coaches.join(", ")})`,
       start: d.start,
@@ -142,7 +142,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const start = new Date(y,m-1,d,h,min);
     const end = new Date(start.getTime() + 45*60000);
 
-    const color = coachColors[coaches[0]] || "#999";
+    const color = coaches.length === 1 ? coachColors[coaches[0]] : `linear-gradient(to right, ${coaches.map(c=>coachColors[c]||"#999").join(",")})`;
 
     if(editingEvent){
       try{
@@ -183,6 +183,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       modal.classList.add("hidden");
       alert("✅ Lesson added");
     } catch(e){ console.error(e); alert("❌ Failed to add lesson"); }
+  };
+
+  // Delete button inside modal
+  deleteBtn.onclick = async () => {
+    if(!editingEvent) return;
+    const ok = confirm(`Delete lesson "${editingEvent.title}"?`);
+    if(!ok) return;
+    try{
+      await deleteDoc(doc(db,"lessons",editingEvent.extendedProps.docId));
+      editingEvent.remove();
+      modal.classList.add("hidden");
+      alert("🗑 Lesson deleted");
+      editingEvent = null;
+    } catch(e){ console.error(e); alert("❌ Failed to delete lesson"); }
   };
 
   cancelBtn.onclick = ()=> {
