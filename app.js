@@ -12,51 +12,30 @@ const addLessonBtn = document.getElementById("addLessonBtn");
 const calendarEl = document.getElementById("calendar");
 
 let calendar;
-let selectedEvent = null;
 let selectedStart = null;
+let selectedEvent = null; // for editing
+let longPressTimeout = null;
 
 const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
 
-// -------- Hall Availability --------
-function getHallBackgroundEvents(start, end) {
-  const events = [];
-  const dayMs = 24 * 60 * 60 * 1000;
-  for (let ts = start.getTime(); ts < end.getTime(); ts += dayMs) {
-    const d = new Date(ts);
-    const day = d.getDay();
-    if (day === 0 || day === 6) continue;
-    const year = d.getFullYear(), month = d.getMonth(), date = d.getDate();
-    const after6Start = new Date(year, month, date, 18, 0);
-    const after6End = new Date(year, month, date, 22, 0);
-    if ([1,3].includes(day)) {
-      events.push({ start: after6Start, end: after6End, display:"background", color:"rgba(220,38,38,0.2)", extendedProps:{isHall:true} });
-    }
-    if ([2,4,5].includes(day)) {
-      events.push({ start: after6Start, end: after6End, display:"background", color:"rgba(245,158,11,0.2)", extendedProps:{isHall:true} });
-    }
-  }
-  return events;
-}
-function renderHallAvailability() {
-  calendar.getEvents().forEach(ev=>{ if(ev.extendedProps?.isHall) ev.remove(); });
-  getHallBackgroundEvents(calendar.view.activeStart, calendar.view.activeEnd).forEach(ev=>calendar.addEvent(ev));
-}
-
-// -------- Helpers --------
 function formatOrdinal(n){
   if(n>3 && n<21) return n+"th";
   switch(n%10){case 1: return n+"st"; case 2: return n+"nd"; case 3: return n+"rd"; default: return n+"th";}
 }
 
-function getEventColor(coachList) {
-  if (Array.isArray(coachList)) {
-    const colors = coachList.map(c => coachColors[c] || "#999");
-    return `linear-gradient(90deg, ${colors.join(", ")})`;
-  } else { return coachColors[coachList] || "#999"; }
+// Get color for multiple coaches
+function getEventColor(coaches){
+  if(Array.isArray(coaches)){
+    if(coaches.length===1) return coachColors[coaches[0]] || "#999";
+    // gradient for multiple coaches
+    return `linear-gradient(45deg, ${coaches.map(c=>coachColors[c]||"#999").join(", ")})`;
+  }else{
+    return coachColors[coaches] || "#999";
+  }
 }
 
-// -------- Initialize Calendar --------
 document.addEventListener("DOMContentLoaded", async ()=>{
+
   calendar = new FullCalendar.Calendar(calendarEl,{
     initialView:"timeGridWeek",
     firstDay:1,
@@ -68,7 +47,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     slotMaxTime:"22:00:00",
     slotDuration:"00:15:00",
     slotLabelInterval:"01:00:00",
-    height:'auto', contentHeight:'auto',
+    height:'auto',
+    contentHeight:'auto',
 
     dayHeaderContent: arg => {
       const weekday = arg.date.toLocaleDateString("en-GB",{ weekday: "long" });
@@ -77,11 +57,12 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     },
 
     select: info => {
-      if(window.innerWidth > 500){ 
-        selectedStart = info.start; selectedEvent=null;
+      if(window.innerWidth > 500){ // PC select
+        selectedStart = info.start;
         titleInput.value = "";
         lessonDateInput.valueAsDate = info.start;
         lessonTimeInput.value = info.start.toTimeString().slice(0,5);
+        selectedEvent = null;
         modal.classList.remove("hidden");
       }
       calendar.unselect();
@@ -89,103 +70,136 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
     eventClick: info => {
       selectedEvent = info.event;
+      
+      // Parse title and coach(es)
       const titleParts = selectedEvent.title.match(/^(.*) \((.*)\)$/);
       titleInput.value = titleParts ? titleParts[1] : selectedEvent.title;
       lessonDateInput.valueAsDate = new Date(selectedEvent.start);
       lessonTimeInput.value = selectedEvent.start.toTimeString().slice(0,5);
+
       const coachVal = titleParts ? titleParts[2].split(", ") : ["Vlad"];
-      // select multiple in modal
       Array.from(coachSelect.options).forEach(opt => opt.selected = coachVal.includes(opt.value));
+
+      // Add temporary delete button if not exists
+      if(!document.getElementById("deleteLesson")){
+        const delBtn = document.createElement("button");
+        delBtn.id = "deleteLesson";
+        delBtn.textContent = "Delete";
+        delBtn.classList.add("secondary");
+        delBtn.onclick = async () => {
+          if(confirm(`Delete lesson "${selectedEvent.title}"?`)){
+            try{
+              const lessonId = selectedEvent.extendedProps.docId;
+              if(lessonId) await deleteDoc(doc(db,"lessons",lessonId));
+              selectedEvent.remove();
+              alert("🗑 Lesson deleted");
+              modal.classList.add("hidden");
+              selectedEvent = null;
+            }catch(e){ console.error(e); alert("❌ Failed to delete"); }
+          }
+        };
+        document.querySelector(".modal-buttons").appendChild(delBtn);
+      }
+
       modal.classList.remove("hidden");
     },
 
     eventTouchStart: info => {
-      let timer = setTimeout(async ()=>{
-        if(confirm(`Delete lesson "${info.event.title}"?`)){
+      // mobile long press for delete
+      longPressTimeout = setTimeout(async () => {
+        const ok = confirm(`Delete lesson "${info.event.title}"?`);
+        if(!ok) return;
+        try{
           const lessonId = info.event.extendedProps.docId;
           if(lessonId) await deleteDoc(doc(db,"lessons",lessonId));
           info.event.remove();
           alert("🗑 Lesson deleted");
-        }
-      }, 800);
-      info.jsEvent.addEventListener("touchend", ()=>clearTimeout(timer));
-    }
+        }catch(e){ console.error(e); alert("❌ Failed to delete"); }
+      }, 700);
+    },
+
+    eventTouchEnd: () => { clearTimeout(longPressTimeout); }
   });
 
   calendar.render();
-  renderHallAvailability();
-  calendar.on('datesSet', () => renderHallAvailability());
 
-  // Load lessons
+  // LOAD LESSONS FROM FIRESTORE
   const snapshot = await getDocs(collection(db,"lessons"));
   snapshot.forEach(docSnap=>{
     const d = docSnap.data();
+    const coaches = Array.isArray(d.coach) ? d.coach : [d.coach];
     calendar.addEvent({
-      title: Array.isArray(d.coach) ? `${d.title} (${d.coach.join(", ")})` : `${d.title} (${d.coach})`,
+      title:`${d.title} (${coaches.join(", ")})`,
       start:d.start,
       end:d.end,
-      backgroundColor: getEventColor(d.coach),
-      borderColor: getEventColor(d.coach),
-      extendedProps:{docId:docSnap.id, coach:d.coach}
+      backgroundColor:getEventColor(coaches),
+      borderColor:getEventColor(coaches),
+      extendedProps:{docId:docSnap.id}
     });
   });
 
-  // Mobile floating add button
+  // Floating button for mobile
   addLessonBtn.onclick = () => {
     const now = new Date();
-    lessonDateInput.valueAsDate = now; lessonTimeInput.value="09:00"; titleInput.value=""; selectedStart=null; selectedEvent=null;
-    Array.from(coachSelect.options).forEach(opt=>opt.selected=false);
+    lessonDateInput.valueAsDate = now;
+    lessonTimeInput.value = "09:00";
+    titleInput.value = "";
+    selectedStart = null; // mobile manual
+    selectedEvent = null;
     modal.classList.remove("hidden");
   };
 
-  // Save lesson
+  // SAVE LESSON (add or edit)
   saveBtn.onclick = async () => {
     const title = titleInput.value.trim();
-    let coach = Array.from(coachSelect.selectedOptions).map(opt=>opt.value);
+    const selectedCoaches = Array.from(coachSelect.selectedOptions).map(o=>o.value);
     if(!title){ alert("Enter lesson name"); return; }
-    
-    if(selectedEvent){
-      const start = new Date(lessonDateInput.value);
-      const [h,m] = lessonTimeInput.value.split(":").map(Number);
-      start.setHours(h,m);
-      const end = new Date(start.getTime()+45*60000);
-      try{
-        const lessonId = selectedEvent.extendedProps.docId;
-        if(lessonId) await updateDoc(doc(db,"lessons",lessonId), {title, coach, start:start.toISOString(), end:end.toISOString()});
-        selectedEvent.setProp("title", `${title} (${coach.join(", ")})`);
-        selectedEvent.setStart(start); selectedEvent.setEnd(end);
-        selectedEvent.setProp("backgroundColor", getEventColor(coach));
-        selectedEvent.setProp("borderColor", getEventColor(coach));
-        selectedEvent.setExtendedProp("coach", coach);
-        alert("✅ Lesson updated");
-      }catch(e){ console.error(e); alert("❌ Failed to update"); }
-      modal.classList.add("hidden"); selectedEvent=null; return;
-    }
+    if(selectedCoaches.length===0){ alert("Select at least one coach"); return; }
 
     let start;
-    if(selectedStart) start = selectedStart;
-    else{
+    if(selectedStart){ start = selectedStart; }
+    else {
       const dateParts = lessonDateInput.value.split("-");
-      const [year,month,day]=dateParts.map(Number);
-      const [hour,minute]=lessonTimeInput.value.split(":").map(Number);
-      start=new Date(year,month-1,day,hour,minute);
+      const [year, month, day] = dateParts.map(Number);
+      const [hour, minute] = lessonTimeInput.value.split(":").map(Number);
+      start = new Date(year, month-1, day, hour, minute);
     }
-    const end=new Date(start.getTime()+45*60000);
+    const end = new Date(start.getTime() + 45*60000);
 
     try{
-      const docRef = await addDoc(collection(db,"lessons"), {title, coach, start:start.toISOString(), end:end.toISOString()});
-      calendar.addEvent({
-        title: `${title} (${coach.join(", ")})`,
-        start, end,
-        backgroundColor: getEventColor(coach),
-        borderColor: getEventColor(coach),
-        extendedProps:{docId:docRef.id, coach}
-      });
-      alert("✅ Lesson added"); modal.classList.add("hidden"); selectedStart=null;
-    }catch(e){ console.error(e); alert("❌ Failed to add lesson"); }
+      if(selectedEvent){ // EDIT
+        const lessonId = selectedEvent.extendedProps.docId;
+        if(lessonId) await updateDoc(doc(db,"lessons",lessonId), {
+          title, coach:selectedCoaches, start:start.toISOString(), end:end.toISOString()
+        });
+        selectedEvent.setProp("title", `${title} (${selectedCoaches.join(", ")})`);
+        selectedEvent.setStart(start);
+        selectedEvent.setEnd(end);
+        selectedEvent.setProp("backgroundColor", getEventColor(selectedCoaches));
+        selectedEvent.setProp("borderColor", getEventColor(selectedCoaches));
+        alert("✅ Lesson updated");
+      } else { // ADD
+        const docRef = await addDoc(collection(db,"lessons"), {
+          title, coach:selectedCoaches, start:start.toISOString(), end:end.toISOString()
+        });
+        calendar.addEvent({
+          title:`${title} (${selectedCoaches.join(", ")})`,
+          start, end,
+          backgroundColor:getEventColor(selectedCoaches),
+          borderColor:getEventColor(selectedCoaches),
+          extendedProps:{docId:docRef.id}
+        });
+        alert("✅ Lesson added");
+      }
+      modal.classList.add("hidden");
+      selectedStart = null;
+      selectedEvent = null;
+    }catch(e){ console.error(e); alert("❌ Failed to save lesson"); }
   };
 
-  // Cancel modal
-  cancelBtn.onclick = ()=> { modal.classList.add("hidden"); selectedEvent=null; selectedStart=null; };
+  cancelBtn.onclick = () => {
+    modal.classList.add("hidden");
+    selectedEvent = null;
+  };
 
 });
