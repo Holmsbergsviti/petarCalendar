@@ -4,9 +4,10 @@
   <meta charset="UTF-8" />
   <title>Dance Lessons Calendar</title>
   <link rel="icon" href="master_icon.jpg">
-
+  <!-- FullCalendar CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.11/index.global.min.css">
+
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,20 +19,20 @@
 <!-- Modal -->
 <div id="lessonModal" class="modal hidden">
   <div class="modal-content">
-    <h2 id="modalTitle">Add lesson</h2>
+    <h2>Add lesson</h2>
 
     <label>
       Lesson name
-      <input id="lessonTitle" type="text">
+      <input id="lessonTitle" type="text" placeholder="Ballroom training">
     </label>
 
     <label>
-      Coaches
-      <div class="checkboxes">
-        <label><input type="checkbox" value="Vlad"> Vlad</label>
-        <label><input type="checkbox" value="Ana"> Ana</label>
+      Coach
+      <div id="lessonCoaches">
+        <label><input type="checkbox" value="Vlad"> Vlad</label><br>
+        <label><input type="checkbox" value="Ana"> Ana</label><br>
         <label><input type="checkbox" value="Petar Boss"> Petar Boss</label>
-      </div>
+        </div>
     </label>
 
     <label>
@@ -46,19 +47,23 @@
 
     <div class="modal-buttons">
       <button id="saveLesson">Save</button>
-      <button id="deleteLesson" class="danger hidden">Delete</button>
       <button id="cancelLesson" class="secondary">Cancel</button>
     </div>
   </div>
 </div>
 
+<!-- Floating Add Lesson Button -->
 <button id="addLessonBtn" class="floating-btn">+</button>
 
+<!-- FullCalendar JS (GLOBAL build) -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.11/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@6.1.11/index.global.min.js"></script>
 
+<!-- Firebase -->
 <script type="module" src="firebase.js"></script>
+
+<!-- App -->
 <script type="module" src="app.js"></script>
 
 </body>
