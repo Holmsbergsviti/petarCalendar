@@ -13,6 +13,7 @@ const saveBtn = document.getElementById("saveLesson");
 const deleteBtn = document.getElementById("deleteLesson");
 const addBtn = document.getElementById("addLessonBtn");
 const calendarEl = document.getElementById("calendar");
+const cancelBtn = document.getElementById("cancelLesson");
 
 let calendar;
 let editingEvent = null;
@@ -83,6 +84,11 @@ function openModal(start, event = null){
 
   modal.classList.remove("hidden");
 }
+
+cancelBtn.onclick = () => {
+  modal.classList.add("hidden");
+  editingEvent = null;
+};
 
 saveBtn.onclick = async () => {
   const title = titleInput.value;
