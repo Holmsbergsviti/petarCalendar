@@ -110,7 +110,6 @@ button.secondary {
     flex: 1 1 45%;
   }
 
-  /* mobile slots bigger for tapping */
   .fc-timegrid-slot {
     height: 40px !important;
   }
@@ -122,4 +121,3 @@ button.secondary {
     height: 20px !important;
   }
 }
-

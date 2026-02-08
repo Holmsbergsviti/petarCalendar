@@ -1,11 +1,4 @@
-import {
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  updateDoc,
-  doc
-} from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+import { collection, addDoc, getDocs, deleteDoc, updateDoc, doc } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 import { db } from "./firebase.js";
 
 const modal = document.getElementById("lessonModal");
@@ -35,15 +28,26 @@ function isMobile() {
   return window.matchMedia("(pointer: coarse)").matches;
 }
 
-// Open modal for adding/editing a lesson
-function openLessonModal(start) {
-  selectedStart = start || null;
-  editingEvent = null;
+function getSelectedCoaches() {
+  return Array.from(coachSelect.selectedOptions).map(opt => opt.value);
+}
 
-  titleInput.value = "";
-  lessonDateInput.valueAsDate = start || new Date();
-  lessonTimeInput.value = start ? start.toTimeString().slice(0, 5) : "09:00";
-  coachSelect.value = "Vlad";
+function openLessonModal(start, event=null) {
+  selectedStart = start || null;
+  editingEvent = event;
+
+  titleInput.value = event ? event.title.split(" (")[0] : "";
+  lessonDateInput.valueAsDate = event ? event.start : (start || new Date());
+  lessonTimeInput.value = event ? event.start.toTimeString().slice(0,5) : "09:00";
+
+  // Populate coaches for group lessons
+  if(event){
+    const coaches = Array.isArray(event.extendedProps.coach) ? event.extendedProps.coach : [event.extendedProps.coach];
+    Array.from(coachSelect.options).forEach(opt => opt.selected = coaches.includes(opt.value));
+  } else {
+    Array.from(coachSelect.options).forEach(opt => opt.selected = false);
+    coachSelect.querySelector("option[value='Vlad']").selected = true;
+  }
 
   modal.classList.remove("hidden");
 }
@@ -61,32 +65,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     slotLabelInterval: "01:00",
     height: "auto",
 
-    headerToolbar: {
-      left: "prev,next today",
-      center: "title",
-      right: "timeGridDay,timeGridWeek"
-    },
+    headerToolbar: { left: "prev,next today", center: "title", right: "timeGridDay,timeGridWeek" },
 
     dayHeaderContent: arg => {
-      const weekday = arg.date.toLocaleDateString("en-GB", { weekday: "long" });
+      const weekday = arg.date.toLocaleDateString("en-GB",{ weekday: "long" });
       const day = formatOrdinal(arg.date.getDate());
       return `${weekday} ${day}`;
     },
 
-    // SELECT / ADD LESSON
-    select: info => {
-      if (isMobile()) {
-        // mobile: open modal when selecting a slot
-        selectedStart = info.start;
-        openLessonModal(info.start);
-        calendar.unselect();
-      }
+    dateClick: info => {
+      if(!isMobile()) openLessonModal(info.date);
     },
+
+    select: info => {
+      if(isMobile()) openLessonModal(info.start);
+      calendar.unselect();
+    },
+
+    eventClick: info => openLessonModal(null, info.event),
 
     eventDidMount: info => {
       const el = info.el;
 
-      // --- LONG PRESS DELETE (mobile)
+      // Long press delete for mobile
       el.addEventListener("touchstart", () => {
         longPressTriggered = false;
         longPressTimer = setTimeout(async () => {
@@ -94,141 +95,96 @@ document.addEventListener("DOMContentLoaded", async () => {
           const ok = confirm(`Delete lesson "${info.event.title}"?`);
           if (!ok) return;
           try {
-            await deleteDoc(doc(db, "lessons", info.event.extendedProps.docId));
+            await deleteDoc(doc(db,"lessons",info.event.extendedProps.docId));
             info.event.remove();
             alert("🗑 Lesson deleted");
-          } catch (e) {
-            console.error(e);
-            alert("❌ Failed to delete lesson");
-          }
+          } catch(e){ console.error(e); alert("❌ Failed to delete lesson"); }
         }, 600);
       });
-
-      el.addEventListener("touchend", () => clearTimeout(longPressTimer));
-
-      // --- TAP / CLICK EDIT
-      el.addEventListener("click", () => {
-        if (longPressTriggered) return;
-
-        editingEvent = info.event;
-        selectedStart = null;
-
-        const title = info.event.title.split(" (")[0];
-        titleInput.value = title;
-        lessonDateInput.valueAsDate = info.event.start;
-        lessonTimeInput.value = info.event.start.toTimeString().slice(0, 5);
-        coachSelect.value = info.event.extendedProps.coach;
-
-        modal.classList.remove("hidden");
-      });
+      el.addEventListener("touchend", ()=> clearTimeout(longPressTimer));
     }
+
   });
 
   calendar.render();
 
-  // --- Load lessons from Firestore
-  const snapshot = await getDocs(collection(db, "lessons"));
+  // Load lessons
+  const snapshot = await getDocs(collection(db,"lessons"));
   snapshot.forEach(docSnap => {
     const d = docSnap.data();
-    const color = coachColors[d.coach] || "#999";
-
+    const coaches = Array.isArray(d.coach) ? d.coach : [d.coach];
+    const color = coachColors[coaches[0]] || "#999";
     calendar.addEvent({
-      title: `${d.title} (${d.coach})`,
+      title: `${d.title} (${coaches.join(", ")})`,
       start: d.start,
       end: d.end,
       backgroundColor: color,
       borderColor: color,
-      extendedProps: { docId: docSnap.id, coach: d.coach }
+      extendedProps: { docId: docSnap.id, coach: coaches }
     });
   });
 
-  // --- Floating Add Button (mobile)
+  // Floating add button
   addLessonBtn.onclick = () => openLessonModal(new Date());
 
-  // --- SAVE ADD / EDIT
+  // Save add/edit
   saveBtn.onclick = async () => {
     const title = titleInput.value.trim();
-    const coach = coachSelect.value;
+    const coaches = getSelectedCoaches();
+    if(!title){ alert("Enter lesson name"); return; }
+    if(coaches.length === 0){ alert("Select at least one coach"); return; }
 
-    if (!title) { alert("Enter lesson name"); return; }
+    const [y,m,d] = lessonDateInput.value.split("-").map(Number);
+    const [h,min] = lessonTimeInput.value.split(":").map(Number);
+    const start = new Date(y,m-1,d,h,min);
+    const end = new Date(start.getTime() + 45*60000);
 
-    const [y, m, d] = lessonDateInput.value.split("-").map(Number);
-    const [h, min] = lessonTimeInput.value.split(":").map(Number);
-    const start = new Date(y, m - 1, d, h, min);
-    const end = new Date(start.getTime() + 45 * 60000); // 45 min lesson
-    const color = coachColors[coach];
+    const color = coachColors[coaches[0]] || "#999";
 
-    // EDIT
-    if (editingEvent) {
-      try {
-        await updateDoc(doc(db, "lessons", editingEvent.extendedProps.docId), {
+    if(editingEvent){
+      try{
+        await updateDoc(doc(db,"lessons",editingEvent.extendedProps.docId),{
           title,
-          coach,
-          start: start.toISOString(),
-          end: end.toISOString()
+          coach: coaches,
+          start:start.toISOString(),
+          end:end.toISOString()
         });
-        editingEvent.setProp("title", `${title} (${coach})`);
-        editingEvent.setDates(start, end);
-        editingEvent.setExtendedProp("coach", coach);
-        editingEvent.setProp("backgroundColor", color);
-        editingEvent.setProp("borderColor", color);
+        editingEvent.setProp("title",`${title} (${coaches.join(", ")})`);
+        editingEvent.setDates(start,end);
+        editingEvent.setExtendedProp("coach",coaches);
+        editingEvent.setProp("backgroundColor",color);
+        editingEvent.setProp("borderColor",color);
         modal.classList.add("hidden");
         alert("✏️ Lesson updated");
         editingEvent = null;
         return;
-      } catch (e) {
-        console.error(e);
-        alert("❌ Failed to update lesson");
-        return;
-      }
+      } catch(e){ console.error(e); alert("❌ Failed to update lesson"); return; }
     }
 
-    // ADD
-    try {
-      const docRef = await addDoc(collection(db, "lessons"), {
+    // Add new lesson
+    try{
+      const docRef = await addDoc(collection(db,"lessons"),{
         title,
-        coach,
-        start: start.toISOString(),
-        end: end.toISOString()
+        coach: coaches,
+        start:start.toISOString(),
+        end:end.toISOString()
       });
       calendar.addEvent({
-        title: `${title} (${coach})`,
+        title:`${title} (${coaches.join(", ")})`,
         start,
         end,
         backgroundColor: color,
         borderColor: color,
-        extendedProps: { docId: docRef.id, coach }
+        extendedProps:{docId:docRef.id, coach:coaches}
       });
       modal.classList.add("hidden");
       alert("✅ Lesson added");
-    } catch (e) {
-      console.error(e);
-      alert("❌ Failed to add lesson");
-    }
+    } catch(e){ console.error(e); alert("❌ Failed to add lesson"); }
   };
 
-  cancelBtn.onclick = () => {
+  cancelBtn.onclick = ()=> {
     modal.classList.add("hidden");
     editingEvent = null;
     selectedStart = null;
   };
-
-  // --- DELETE (PC Delete Key)
-  document.addEventListener("keydown", async e => {
-    if (e.key === "Delete" && editingEvent) {
-      const ok = confirm(`Delete "${editingEvent.title}"?`);
-      if (!ok) return;
-      try {
-        await deleteDoc(doc(db, "lessons", editingEvent.extendedProps.docId));
-        editingEvent.remove();
-        editingEvent = null;
-        modal.classList.add("hidden");
-        alert("🗑 Lesson deleted");
-      } catch (err) {
-        console.error(err);
-        alert("❌ Failed to delete lesson");
-      }
-    }
-  });
-
 });

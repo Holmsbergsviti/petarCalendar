@@ -19,7 +19,7 @@
 <!-- Modal -->
 <div id="lessonModal" class="modal hidden">
   <div class="modal-content">
-    <h2>Add lesson</h2>
+    <h2>Add/Edit Lesson</h2>
 
     <label>
       Lesson name
@@ -27,12 +27,12 @@
     </label>
 
     <label>
-      Coach
-      <div id="lessonCoaches">
-        <label><input type="checkbox" value="Vlad"> Vlad</label><br>
-        <label><input type="checkbox" value="Ana"> Ana</label><br>
-        <label><input type="checkbox" value="Petar Boss"> Petar Boss</label>
-        </div>
+      Coaches
+      <select id="lessonCoach" multiple>
+        <option value="Vlad">Vlad</option>
+        <option value="Ana">Ana</option>
+        <option value="Petar Boss">Petar Boss</option>
+      </select>
     </label>
 
     <label>
