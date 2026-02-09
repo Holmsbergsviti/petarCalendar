@@ -83,6 +83,10 @@ function getEventColor(coachList) {
   }
 }
 
+function getSelectedCoaches() {
+  return Array.from(coachSelect.selectedOptions).map(o => o.value);
+}
+
 // -------- Initialize Calendar --------
 document.addEventListener("DOMContentLoaded", async ()=>{
 
@@ -116,6 +120,16 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         modal.classList.remove("hidden");
       }
       calendar.unselect();
+    },
+
+    eventDidMount: info => {
+      const coach = info.event.extendedProps.coach;
+
+      if (Array.isArray(coach) && coach.length > 1) {
+        const colors = coach.map(c => coachColors[c] || "#999");
+        info.el.style.background = `linear-gradient(90deg, ${colors.join(", ")})`;
+        info.el.style.border = "none";
+      }
     },
 
     eventClick: info => {
@@ -174,7 +188,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   // Save lesson
   saveBtn.onclick = async () => {
     const title = titleInput.value.trim();
-    let coach = coachSelect.value;
+    let coach = getSelectedCoaches();
     if (!title) { alert("Enter lesson name"); return; }
 
     // For editing
