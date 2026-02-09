@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <title>Dance Lessons Calendar</title>
   <link rel="icon" href="master_icon.jpg">
-  <!-- FullCalendar CSS -->
+
+  <!-- FullCalendar -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.11/index.global.min.css">
 
@@ -16,18 +17,18 @@
 
 <div id="calendar"></div>
 
-<!-- Modal -->
+<!-- MODAL -->
 <div id="lessonModal" class="modal hidden">
   <div class="modal-content">
-    <h2>Add/Edit lesson</h2>
+    <h2 id="modalTitle">Add lesson</h2>
 
     <label>
       Lesson name
-      <input id="lessonTitle" type="text" placeholder="Ballroom training">
+      <input id="lessonTitle" type="text">
     </label>
 
     <label>
-      Coach
+      Coaches (group allowed)
       <select id="lessonCoach" multiple>
         <option>Vlad</option>
         <option>Ana</option>
@@ -36,7 +37,7 @@
     </label>
 
     <label>
-      Day
+      Date
       <input type="date" id="lessonDate">
     </label>
 
@@ -47,23 +48,21 @@
 
     <div class="modal-buttons">
       <button id="saveLesson">Save</button>
+      <button id="deleteLesson" class="danger hidden">Delete</button>
       <button id="cancelLesson" class="secondary">Cancel</button>
     </div>
   </div>
 </div>
 
-<!-- Floating Add Lesson Button -->
+<!-- Floating button -->
 <button id="addLessonBtn" class="floating-btn">+</button>
 
-<!-- FullCalendar JS (GLOBAL build) -->
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.11/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@6.1.11/index.global.min.js"></script>
 
-<!-- Firebase -->
 <script type="module" src="firebase.js"></script>
-
-<!-- App -->
 <script type="module" src="app.js"></script>
 
 </body>
