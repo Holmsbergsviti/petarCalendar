@@ -130,8 +130,18 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
       if (Array.isArray(coach) && coach.length > 1) {
         const colors = coach.map(c => coachColors[c] || "#999");
-        info.el.style.background = `linear-gradient(90deg, ${colors.join(", ")})`;
+
+        // Remove FC-injected background
+        info.el.style.backgroundColor = "transparent";
+
+        // Apply gradient
+        info.el.style.backgroundImage = `linear-gradient(90deg, ${colors.join(", ")})`;
+
         info.el.style.border = "none";
+      } else {
+        // Single coach – reset to normal
+        info.el.style.backgroundImage = "";
+        info.el.style.backgroundColor = getEventColor(coach);
       }
     },
 
