@@ -141,6 +141,18 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       const coachVal = titleParts ? titleParts[2].split(", ") : ["Vlad"];
       coachSelect.value = coachVal.length === 1 ? coachVal[0] : "Vlad"; // default single selection for now
       modal.classList.remove("hidden");
+      // 🔽 ADD THIS BLOCK
+      const coaches = selectedEvent.extendedProps.coach;
+
+      if (Array.isArray(coaches)) {
+        Array.from(coachSelect.options).forEach(opt => {
+          opt.selected = coaches.includes(opt.value);
+        });
+      } else {
+        Array.from(coachSelect.options).forEach(opt => {
+          opt.selected = opt.value === coaches;
+        });
+      }
     },
 
     eventTouchStart: info => {
