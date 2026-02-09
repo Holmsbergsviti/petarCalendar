@@ -1,6 +1,6 @@
 body {
-  font-family: Arial, sans-serif;
   margin: 0;
+  font-family: Arial, sans-serif;
   background: #f2f2f2;
 }
 
@@ -22,8 +22,8 @@ h1 {
   inset: 0;
   background: rgba(0,0,0,.5);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   z-index: 1000;
 }
 
@@ -54,17 +54,16 @@ input, select {
 button {
   flex: 1;
   padding: 8px;
-  border: none;
   border-radius: 6px;
-  cursor: pointer;
+  border: none;
   background: #3b82f6;
   color: white;
+  cursor: pointer;
 }
 
-button.secondary { background: #999; }
-button.danger { background: #ef4444; }
+.secondary { background: #999; }
+.danger { background: #dc2626; }
 
-/* Floating add */
 .floating-btn {
   position: fixed;
   bottom: 20px;
@@ -72,18 +71,23 @@ button.danger { background: #ef4444; }
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  font-size: 28px;
+  font-size: 30px;
   background: #3b82f6;
   color: white;
   border: none;
-  z-index: 1100;
 }
 
-/* Slot sizing */
-@media (max-width: 500px) {
+/* Desktop */
+@media (min-width: 600px) {
+  .fc-timegrid-slot { height: 20px !important; }
+}
+
+/* Mobile */
+@media (max-width: 599px) {
   .fc-timegrid-slot { height: 40px !important; }
 }
 
-@media (min-width: 501px) {
-  .fc-timegrid-slot { height: 20px !important; }
+/* Optional: lighten hall backgrounds */
+.fc-event[style*="rgba"] {
+  opacity: 1 !important; /* FullCalendar uses inline RGBA, this keeps it */
 }
