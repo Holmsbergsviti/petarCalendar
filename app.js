@@ -18,9 +18,8 @@ let selectedStart = null;
 const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
 
 function refreshEventColors(event) {
-  // Force FullCalendar to re-render the event
-  event.setProp("backgroundColor", "");
-  event.setProp("borderColor", "");
+  const coach = event.extendedProps.coach;
+  event.setProp("backgroundColor", getEventColor(coach));
 }
 
 // -------- Hall Availability --------
@@ -82,11 +81,9 @@ function formatOrdinal(n){
 
 function getEventColor(coachList) {
   if (Array.isArray(coachList)) {
-    const colors = coachList.map(c => coachColors[c] || "#999");
-    return `linear-gradient(90deg, ${colors.join(", ")})`;
-  } else {
-    return coachColors[coachList] || "#999";
+    return coachColors[coachList[0]] || "#999";
   }
+  return coachColors[coachList] || "#999";
 }
 
 function getSelectedCoaches() {
@@ -225,7 +222,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         selectedEvent.setProp("backgroundColor", getEventColor(coach));
         selectedEvent.setProp("borderColor", getEventColor(coach));
         selectedEvent.setExtendedProp("coach", coach);
-        refreshEventColors(selectedEvent);
         alert("✅ Lesson updated");
       } catch(e){ console.error(e); alert("❌ Failed to update"); }
       modal.classList.add("hidden");
