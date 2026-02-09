@@ -17,6 +17,12 @@ let selectedStart = null;
 
 const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
 
+function refreshEventColors(event) {
+  // Force FullCalendar to re-render the event
+  event.setProp("backgroundColor", "");
+  event.setProp("borderColor", "");
+}
+
 // -------- Hall Availability --------
 function getHallBackgroundEvents(start, end) {
   const events = [];
@@ -219,6 +225,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         selectedEvent.setProp("backgroundColor", getEventColor(coach));
         selectedEvent.setProp("borderColor", getEventColor(coach));
         selectedEvent.setExtendedProp("coach", coach);
+        refreshEventColors(selectedEvent);
         alert("✅ Lesson updated");
       } catch(e){ console.error(e); alert("❌ Failed to update"); }
       modal.classList.add("hidden");
