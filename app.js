@@ -161,9 +161,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     },
 
     eventDidMount: info => {
-<<<<<<< HEAD
-      applyEventColors(info);
-=======
       const coach = info.event.extendedProps.coach;
 
       if (Array.isArray(coach) && coach.length > 1) {
@@ -181,7 +178,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         info.el.style.backgroundImage = "";
         info.el.style.backgroundColor = getEventColor(coach);
       }
->>>>>>> parent of 22cbcaa (Fixing color of group lessons)
     },
 
     eventClick: info => {
