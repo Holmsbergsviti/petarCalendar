@@ -22,8 +22,8 @@ function refreshEventColors(event) {
   event.setProp("backgroundColor", getEventColor(coach));
 }
 
-function applyEventColors(event) {
-  const eventEl = calendar.getEventById(event.id)?.el;
+function applyEventColors(info) {
+  const eventEl = calendar.getEventById(info.event.id)?.el;
   if (!eventEl) return;
 
   //const coach = event.extendedProps.coach;
@@ -161,7 +161,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     },
 
     eventDidMount: info => {
-      applyEventColors(info.event);
+      applyEventColors(info);
     },
 
     eventClick: info => {
@@ -250,7 +250,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         selectedEvent.setEnd(end);
         selectedEvent.setProp("backgroundColor", getEventColor(coach));
         selectedEvent.setProp("borderColor", getEventColor(coach));
-        //setTimeout(() => applyEventColors(selectedEvent), 0);
+        setTimeout(() => applyEventColors(selectedEvent), 0);
         selectedEvent.setExtendedProp("coach", coach);
         alert("✅ Lesson updated");
       } catch(e){ console.error(e); alert("❌ Failed to update"); }
