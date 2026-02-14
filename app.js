@@ -161,27 +161,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     },
 
     eventDidMount: info => {
-<<<<<<< HEAD
-      const coach = info.event.extendedProps.coach;
-
-      if (Array.isArray(coach) && coach.length > 1) {
-        const colors = coach.map(c => coachColors[c] || "#999");
-
-        // Remove FC-injected background
-        info.el.style.backgroundColor = "transparent";
-
-        // Apply gradient
-        info.el.style.backgroundImage = `linear-gradient(90deg, ${colors.join(", ")})`;
-
-        info.el.style.border = "none";
-      } else {
-        // Single coach – reset to normal
-        info.el.style.backgroundImage = "";
-        info.el.style.backgroundColor = getEventColor(coach);
-      }
-=======
       applyEventColors(info);
->>>>>>> parent of f411d9d (Revert "Fixing color of group lessons")
     },
 
     eventClick: info => {
