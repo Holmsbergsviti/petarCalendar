@@ -30,10 +30,8 @@ function applyEventColors(event) {
 
   if (Array.isArray(coach) && coach.length > 1) {
     const colors = coach.map(c => coachColors[c] || "#999");
-
-    eventEl.style.backgroundColor = "transparent";
-    eventEl.style.backgroundImage = `linear-gradient(90deg, ${colors.join(", ")})`;
-    eventEl.style.border = "none";
+    info.el.style.background = `linear-gradient(90deg, ${colors.join(", ")})`;
+    info.el.style.border = "none";
   } else {
     eventEl.style.backgroundImage = "";
     eventEl.style.backgroundColor = getEventColor(coach);
