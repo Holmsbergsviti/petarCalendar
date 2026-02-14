@@ -22,6 +22,24 @@ function refreshEventColors(event) {
   event.setProp("backgroundColor", getEventColor(coach));
 }
 
+function applyEventColors(event) {
+  const eventEl = calendar.getEventById(event.id)?.el;
+  if (!eventEl) return;
+
+  const coach = event.extendedProps.coach;
+
+  if (Array.isArray(coach) && coach.length > 1) {
+    const colors = coach.map(c => coachColors[c] || "#999");
+
+    eventEl.style.backgroundColor = "transparent";
+    eventEl.style.backgroundImage = `linear-gradient(90deg, ${colors.join(", ")})`;
+    eventEl.style.border = "none";
+  } else {
+    eventEl.style.backgroundImage = "";
+    eventEl.style.backgroundColor = getEventColor(coach);
+  }
+}
+
 // -------- Hall Availability --------
 function getHallBackgroundEvents(start, end) {
   const events = [];
@@ -126,13 +144,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     },
 
     eventDidMount: info => {
-      const coach = info.event.extendedProps.coach;
-
-      if (Array.isArray(coach) && coach.length > 1) {
-        const colors = coach.map(c => coachColors[c] || "#999");
-        info.el.style.backgroundImage = `linear-gradient(90deg, ${colors.join(", ")})`;
-        info.el.style.border = "none";
-      }
+      applyEventColors(info.event);
     },
 
     eventClick: info => {
@@ -221,6 +233,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         selectedEvent.setEnd(end);
         selectedEvent.setProp("backgroundColor", getEventColor(coach));
         selectedEvent.setProp("borderColor", getEventColor(coach));
+        setTimeout(() => applyEventColors(selectedEvent), 0);
         selectedEvent.setExtendedProp("coach", coach);
         alert("✅ Lesson updated");
       } catch(e){ console.error(e); alert("❌ Failed to update"); }
