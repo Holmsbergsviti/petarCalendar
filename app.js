@@ -13,6 +13,31 @@ const calendarEl = document.getElementById("calendar");
 const deleteBtn = document.getElementById("deleteLesson");
 const lessonTypeSelect = document.getElementById("lessonType");
 
+/* ===============================
+   HALL AVAILABILITY CONFIG
+   ===============================
+
+   day: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri
+   ranges use 24h format
+*/
+
+const hallRules = {
+  1: [ // Monday
+    { from: 18, to: 24, status: "none" }
+  ],
+  2: [ // Tuesday
+    { from: 18, to: 24, status: "small-only" }
+  ],
+  3: [ // Wednesday
+    { from: 18, to: 24, status: "none" }
+  ],
+  4: [ // Thursday
+    { from: 18, to: 24, status: "small-only" }
+  ],
+  5: [ // Friday
+    { from: 18, to: 24, status: "small-only" }
+  ]
+};
 
 let calendar;
 let selectedEvent = null;
@@ -65,6 +90,22 @@ function formatOrdinal(n){
   }
 }
 
+function getHallStatus(date) {
+  const day = date.getDay(); // 0=Sun
+  const hour = date.getHours();
+
+  const rules = hallRules[day];
+  if (!rules) return null;
+
+  for (let rule of rules) {
+    if (hour >= rule.from && hour < rule.to) {
+      return rule.status;
+    }
+  }
+
+  return null;
+}
+
 function getSelectedCoaches() {
   return Array.from(coachSelect.selectedOptions).map(o => o.value);
 }
@@ -108,28 +149,16 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     eventDidMount: info => {
       applyEventColors(info);
     },
-
+     
     slotLaneClassNames: function(arg) {
+      const status = getHallStatus(arg.date);
 
-      const date = arg.date;
-      const day = date.getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
-      const hour = date.getHours();
+      if (status === "small-only") return ["hall-small-only"];
+      if (status === "none") return ["hall-none"];
 
-      // MONDAY (1) & WEDNESDAY (3)
-      if (day === 1 || day === 3) {
-        if (hour < 18) return ["hall-both"];
-        return ["hall-none"];
-      }
-
-      // TUESDAY (2), THURSDAY (4), FRIDAY (5)
-      if (day === 2 || day === 4 || day === 5) {
-        if (hour < 18) return ["hall-both"];
-        return ["hall-small-only"];
-      }
-
-      return [];
+      return []; // both halls free → no color
     },
-    
+
     eventClick: info => {
       selectedEvent = info.event;
       const titleParts = selectedEvent.title.match(/^(.*) \((.*)\)$/);

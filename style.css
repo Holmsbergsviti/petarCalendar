@@ -92,17 +92,10 @@ button {
   opacity: 1 !important; /* FullCalendar uses inline RGBA, this keeps it */
 }
 
-/* BOTH halls free */
-.hall-both {
-  background-color: #e6ffe6 !important; /* light green */
-}
-
-/* ONLY small hall free */
 .hall-small-only {
-  background-color: #fff8cc !important; /* light yellow */
+  background-color: #fff4b3 !important; /* soft yellow */
 }
 
-/* BOTH halls taken */
 .hall-none {
-  background-color: #eeeeee !important; /* light grey */
+  background-color: #e5e5e5 !important; /* soft grey */
 }
