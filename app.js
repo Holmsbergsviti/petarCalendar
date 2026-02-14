@@ -10,6 +10,8 @@ const saveBtn = document.getElementById("saveLesson");
 const cancelBtn = document.getElementById("cancelLesson");
 const addLessonBtn = document.getElementById("addLessonBtn");
 const calendarEl = document.getElementById("calendar");
+const deleteBtn = document.getElementById("deleteLesson");
+
 
 let calendar;
 let selectedEvent = null;
@@ -156,6 +158,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         lessonDateInput.valueAsDate = info.start;
         lessonTimeInput.value = info.start.toTimeString().slice(0,5);
         modal.classList.remove("hidden");
+        deleteBtn.classList.add("hidden");
       }
       calendar.unselect();
     },
@@ -173,6 +176,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       const coachVal = titleParts ? titleParts[2].split(", ") : ["Vlad"];
       coachSelect.value = coachVal.length === 1 ? coachVal[0] : "Vlad"; // default single selection for now
       modal.classList.remove("hidden");
+      deleteBtn.classList.remove("hidden");
       // 🔽 ADD THIS BLOCK
       const coaches = selectedEvent.extendedProps.coach;
 
@@ -227,6 +231,29 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     selectedStart = null;
     selectedEvent = null;
     modal.classList.remove("hidden");
+    deleteBtn.classList.add("hidden");
+  };
+
+  deleteBtn.onclick = async () => {
+    if (!selectedEvent) return;
+
+    if (!confirm(`Delete lesson "${selectedEvent.title}"?`)) return;
+
+    try {
+      const lessonId = selectedEvent.extendedProps.docId;
+      if (lessonId) {
+        await deleteDoc(doc(db, "lessons", lessonId));
+      }
+
+      selectedEvent.remove();
+      modal.classList.add("hidden");
+      selectedEvent = null;
+
+      alert("🗑 Lesson deleted");
+    } catch (e) {
+      console.error(e);
+      alert("❌ Failed to delete lesson");
+    }
   };
 
   // Save lesson
