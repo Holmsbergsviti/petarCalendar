@@ -54,57 +54,6 @@ function applyEventColors(info) {
   }
 }
 
-// -------- Hall Availability --------
-function getHallBackgroundEvents(start, end) {
-  const events = [];
-  const dayMs = 24 * 60 * 60 * 1000;
-
-  for (let ts = start.getTime(); ts < end.getTime(); ts += dayMs) {
-    const d = new Date(ts);
-    const day = d.getDay();
-
-    if (day === 0 || day === 6) continue;
-
-    const year = d.getFullYear();
-    const month = d.getMonth();
-    const date = d.getDate();
-    const after6Start = new Date(year, month, date, 18, 0);
-    const after6End = new Date(year, month, date, 22, 0);
-
-    if ([1, 3].includes(day)) {
-      events.push({
-        start: after6Start,
-        end: after6End,
-        display: "background",
-        allDay: false,
-        color: "rgba(220,38,38,0.2)",
-        extendedProps: { isHall: true }
-      });
-    }
-
-    if ([2, 4, 5].includes(day)) {
-      events.push({
-        start: after6Start,
-        end: after6End,
-        display: "background",
-        allDay: false,
-        color: "rgba(112, 74, 8, 0.2)",
-        extendedProps: { isHall: true }
-      });
-    }
-  }
-
-  return events;
-}
-
-function renderHallAvailability() {
-  calendar.getEvents().forEach(ev => {
-    if (ev.extendedProps && ev.extendedProps.isHall) ev.remove();
-  });
-  const hallEvents = getHallBackgroundEvents(calendar.view.activeStart, calendar.view.activeEnd);
-  hallEvents.forEach(ev => calendar.addEvent(ev));
-}
-
 // -------- Helpers --------
 function formatOrdinal(n){
   if(n>3 && n<21) return n+"th";
@@ -115,7 +64,6 @@ function formatOrdinal(n){
     default: return n+"th";
   }
 }
-
 
 function getSelectedCoaches() {
   return Array.from(coachSelect.selectedOptions).map(o => o.value);
@@ -161,6 +109,27 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       applyEventColors(info);
     },
 
+    slotLaneClassNames: function(arg) {
+
+      const date = arg.date;
+      const day = date.getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
+      const hour = date.getHours();
+
+      // MONDAY (1) & WEDNESDAY (3)
+      if (day === 1 || day === 3) {
+        if (hour < 18) return ["hall-both"];
+        return ["hall-none"];
+      }
+
+      // TUESDAY (2), THURSDAY (4), FRIDAY (5)
+      if (day === 2 || day === 4 || day === 5) {
+        if (hour < 18) return ["hall-both"];
+        return ["hall-small-only"];
+      }
+
+      return [];
+    },
+    
     eventClick: info => {
       selectedEvent = info.event;
       const titleParts = selectedEvent.title.match(/^(.*) \((.*)\)$/);
