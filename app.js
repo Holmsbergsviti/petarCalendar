@@ -11,6 +11,7 @@ const cancelBtn = document.getElementById("cancelLesson");
 const addLessonBtn = document.getElementById("addLessonBtn");
 const calendarEl = document.getElementById("calendar");
 const deleteBtn = document.getElementById("deleteLesson");
+const lessonTypeSelect = document.getElementById("lessonType");
 
 
 let calendar;
@@ -18,44 +19,38 @@ let selectedEvent = null;
 let selectedStart = null;
 
 const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
+const groupColor = "#8b5cf6";
 
-function refreshEventColors(event) {
-  const coach = event.extendedProps.coach;
-  event.setProp("backgroundColor", getEventColor(coach));
+function getEventColor(coachList, lessonType = "class") {
+  if (lessonType === "group") return groupColor;
+
+  if (Array.isArray(coachList)) {
+    return coachColors[coachList[0]] || "#999";
+  }
+  return coachColors[coachList] || "#999";
 }
 
 function applyEventColors(info) {
-  const eventEl = calendar.getEventById(info.event.id)?.el;
-  if (!eventEl) return;
-
-  //const coach = event.extendedProps.coach;
-
-  //if (Array.isArray(coach) && coach.length > 1) {
-  //  const colors = coach.map(c => coachColors[c] || "#999");
-
-  //  eventEl.style.backgroundColor = "transparent";
-  //  eventEl.style.backgroundImage = `linear-gradient(90deg, ${colors.join(", ")})`;
-  //  eventEl.style.border = "none";
-  //} else {
-  //  eventEl.style.backgroundImage = "";
-  //  eventEl.style.backgroundColor = getEventColor(coach);
-  //}
   const coach = info.event.extendedProps.coach;
+  const lessonType = info.event.extendedProps.lessonType || "class";
+
+  if (lessonType === "group") {
+    info.el.style.backgroundImage = "";
+    info.el.style.backgroundColor = groupColor;
+    info.el.style.border = "none";
+    return;
+  }
 
   if (Array.isArray(coach) && coach.length > 1) {
     const colors = coach.map(c => coachColors[c] || "#999");
 
-    // Remove FC-injected background
     info.el.style.backgroundColor = "transparent";
-
-    // Apply gradient
-    info.el.style.backgroundImage = `linear-gradient(90deg, ${colors.join(", ")})`;
-
+    info.el.style.backgroundImage =
+      `linear-gradient(90deg, ${colors.join(", ")})`;
     info.el.style.border = "none";
   } else {
-    // Single coach – reset to normal
     info.el.style.backgroundImage = "";
-    info.el.style.backgroundColor = getEventColor(coach);
+    info.el.style.backgroundColor = getEventColor(coach, lessonType);
   }
 }
 
@@ -113,15 +108,14 @@ function renderHallAvailability() {
 // -------- Helpers --------
 function formatOrdinal(n){
   if(n>3 && n<21) return n+"th";
-  switch(n%10){case 1: return n+"st"; case 2: return n+"nd"; case 3: return n+"rd"; default: return n+"th";}
+  switch(n%10){
+    case 1: return n+"st";
+    case 2: return n+"nd";
+    case 3: return n+"rd";
+    default: return n+"th";
+  }
 }
 
-function getEventColor(coachList) {
-  if (Array.isArray(coachList)) {
-    return coachColors[coachList[0]] || "#999";
-  }
-  return coachColors[coachList] || "#999";
-}
 
 function getSelectedCoaches() {
   return Array.from(coachSelect.selectedOptions).map(o => o.value);
@@ -177,6 +171,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       coachSelect.value = coachVal.length === 1 ? coachVal[0] : "Vlad"; // default single selection for now
       modal.classList.remove("hidden");
       deleteBtn.classList.remove("hidden");
+      lessonTypeSelect.value = selectedEvent.extendedProps.lessonType || "class";
       // 🔽 ADD THIS BLOCK
       const coaches = selectedEvent.extendedProps.coach;
 
@@ -216,9 +211,13 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       title: Array.isArray(d.coach) ? `${d.title} (${d.coach.join(", ")})` : `${d.title} (${d.coach})`,
       start:d.start,
       end:d.end,
-      backgroundColor: getEventColor(d.coach),
-      borderColor: getEventColor(d.coach),
-      extendedProps:{docId:docSnap.id, coach:d.coach}
+      backgroundColor: getEventColor(d.coach, d.lessonType),
+      borderColor: getEventColor(d.coach, d.lessonType),
+      extendedProps:{
+        docId:docSnap.id,
+        coach:d.coach,
+        lessonType:d.lessonType || "class"
+      }
     });
   });
 
@@ -260,6 +259,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   saveBtn.onclick = async () => {
     const title = titleInput.value.trim();
     let coach = getSelectedCoaches();
+    const lessonType = lessonTypeSelect.value;
     if (!title) { alert("Enter lesson name"); return; }
 
     // For editing
@@ -267,18 +267,42 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       const start = new Date(lessonDateInput.value);
       const [h,m] = lessonTimeInput.value.split(":").map(Number);
       start.setHours(h,m);
-      const end = new Date(start.getTime() + 45*60000);
+      const duration = lessonType === "group" ? 60 : 45;
+      const end = new Date(start.getTime() + duration * 60000);
+
 
       try {
         const lessonId = selectedEvent.extendedProps.docId;
-        if(lessonId) await updateDoc(doc(db,"lessons",lessonId), {title, coach, start:start.toISOString(), end:end.toISOString()});
+        if(lessonId) {
+          await updateDoc(doc(db,"lessons",lessonId), {
+            title,
+            coach,
+            lessonType,
+            start:start.toISOString(),
+            end:end.toISOString()
+          });
+        }
         selectedEvent.setProp("title", Array.isArray(coach) ? `${title} (${coach.join(", ")})` : `${title} (${coach})`);
         selectedEvent.setStart(start);
         selectedEvent.setEnd(end);
-        selectedEvent.setProp("backgroundColor", getEventColor(coach));
-        selectedEvent.setProp("borderColor", getEventColor(coach));
-        setTimeout(() => applyEventColors(selectedEvent), 0);
+        selectedEvent.setProp("backgroundColor", getEventColor(coach, lessonType));
+        selectedEvent.setProp("borderColor", getEventColor(coach, lessonType));
         selectedEvent.setExtendedProp("coach", coach);
+        selectedEvent.setExtendedProp("lessonType", lessonType);
+        selectedEvent.remove();
+        calendar.addEvent({
+          title: selectedEvent.title,
+          start,
+          end,
+          backgroundColor: getEventColor(coach, lessonType),
+          borderColor: getEventColor(coach, lessonType),
+          extendedProps:{
+            docId: lessonId,
+            coach,
+            lessonType
+          }
+        });
+
         alert("✅ Lesson updated");
       } catch(e){ console.error(e); alert("❌ Failed to update"); }
       modal.classList.add("hidden");
@@ -296,22 +320,43 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       const [hour, minute] = lessonTimeInput.value.split(":").map(Number);
       start = new Date(year, month-1, day, hour, minute);
     }
-    const end = new Date(start.getTime() + 45*60000);
+    const duration = lessonType === "group" ? 60 : 45;
+    const end = new Date(start.getTime() + duration*60000);
+
 
     try {
-      const docRef = await addDoc(collection(db,"lessons"), {title, coach, start:start.toISOString(), end:end.toISOString()});
+      const docRef = await addDoc(collection(db,"lessons"), {
+        title,
+        coach,
+        lessonType,
+        start:start.toISOString(),
+        end:end.toISOString()
+      });
+
       calendar.addEvent({
-        title: Array.isArray(coach) ? `${title} (${coach.join(", ")})` : `${title} (${coach})`,
+        title: Array.isArray(coach)
+          ? `${title} (${coach.join(", ")})`
+          : `${title} (${coach})`,
         start,
         end,
-        backgroundColor: getEventColor(coach),
-        borderColor: getEventColor(coach),
-        extendedProps:{docId:docRef.id, coach}
+        backgroundColor: getEventColor(coach, lessonType),
+        borderColor: getEventColor(coach, lessonType),
+        extendedProps:{
+          docId: docRef.id,
+          coach,
+          lessonType
+        }
       });
+
       alert("✅ Lesson added");
       modal.classList.add("hidden");
       selectedStart = null;
-    } catch(e){ console.error(e); alert("❌ Failed to add lesson"); }
+
+    } catch(e){
+      console.error(e);
+      alert("❌ Failed to add lesson");
+    }
+
   };
 
   // Cancel modal
