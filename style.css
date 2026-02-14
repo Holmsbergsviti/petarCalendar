@@ -1,7 +1,7 @@
 body {
-  font-family: Arial;
   margin: 0;
-  padding: 0;
+  font-family: Arial, sans-serif;
+  background: #f2f2f2;
 }
 
 h1 {
@@ -11,66 +11,83 @@ h1 {
 
 #calendar {
   max-width: 1200px;
-  margin: auto;
-  height: calc(100vh - 120px);
-}
-
-.fc-timegrid-slot {
-  height: 35px !important;
-}
-
-@media (max-width: 768px) {
-  #calendar {
-    height: calc(100vh - 80px);
-  }
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
 }
 
 /* Modal */
-
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.4);
+  inset: 0;
+  background: rgba(0,0,0,.5);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
-.hidden {
-  display: none;
-}
+.hidden { display: none; }
 
 .modal-content {
   background: white;
   padding: 20px;
-  width: 300px;
-  border-radius: 8px;
+  border-radius: 12px;
+  width: 320px;
 }
 
-.modal-content input,
-.modal-content select {
+label {
+  display: block;
+  margin-bottom: 12px;
+}
+
+input, select {
   width: 100%;
-  margin-bottom: 10px;
-  padding: 5px;
+  padding: 8px;
 }
 
 .modal-buttons {
   display: flex;
-  justify-content: space-between;
+  gap: 10px;
 }
 
-.delete-btn {
-  background: red;
+button {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  background: #3b82f6;
   color: white;
+  cursor: pointer;
 }
 
-.fab {
+.secondary { background: #999; }
+.danger { background: #dc2626; }
+
+.floating-btn {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  font-size: 24px;
-  padding: 10px 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  font-size: 30px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+}
+
+/* Desktop */
+@media (min-width: 600px) {
+  .fc-timegrid-slot { height: 20px !important; }
+}
+
+/* Mobile */
+@media (max-width: 599px) {
+  .fc-timegrid-slot { height: 40px !important; }
+}
+
+/* Optional: lighten hall backgrounds */
+.fc-event[style*="rgba"] {
+  opacity: 1 !important; /* FullCalendar uses inline RGBA, this keeps it */
 }
