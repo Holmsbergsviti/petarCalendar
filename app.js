@@ -97,7 +97,7 @@ function getHallBackgroundEvents(start, end) {
         end: endTime,
         display: "background",
         allDay: false,
-        color: bg,
+        backgroundColor: bg,
         extendedProps: { isHall: true, status: r.status }
       });
     }
