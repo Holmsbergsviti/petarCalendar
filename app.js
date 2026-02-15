@@ -22,21 +22,11 @@ const lessonTypeSelect = document.getElementById("lessonType");
 */
 
 const hallRules = {
-  1: [ // Monday
-    { from: 18, to: 24, status: "none" }
-  ],
-  2: [ // Tuesday
-    { from: 18, to: 24, status: "small-only" }
-  ],
-  3: [ // Wednesday
-    { from: 18, to: 24, status: "none" }
-  ],
-  4: [ // Thursday
-    { from: 18, to: 24, status: "small-only" }
-  ],
-  5: [ // Friday
-    { from: 18, to: 24, status: "small-only" }
-  ]
+  1: [{ from: 18, to: 22, status: "none" }],        // Mon
+  2: [{ from: 18, to: 22, status: "small-only" }],  // Tue
+  3: [{ from: 18, to: 22, status: "none" }],        // Wed
+  4: [{ from: 18, to: 22, status: "small-only" }],  // Thu
+  5: [{ from: 18, to: 22, status: "small-only" }]   // Fri
 };
 
 let calendar;
@@ -91,18 +81,15 @@ function formatOrdinal(n){
 }
 
 function getHallStatus(date) {
-  const day = date.getDay(); // 0=Sun
-  const hour = date.getHours();
+  const day = date.getDay();       // 0 Sun ... 6 Sat
+  const hour = date.getHours();    // 0..23
 
   const rules = hallRules[day];
   if (!rules) return null;
 
-  for (let rule of rules) {
-    if (hour >= rule.from && hour < rule.to) {
-      return rule.status;
-    }
+  for (const rule of rules) {
+    if (hour >= rule.from && hour < rule.to) return rule.status;
   }
-
   return null;
 }
 
@@ -150,13 +137,11 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       applyEventColors(info);
     },
      
-    slotLaneClassNames: function(arg) {
+    slotLaneClassNames: (arg) => {
       const status = getHallStatus(arg.date);
-
       if (status === "small-only") return ["hall-small-only"];
       if (status === "none") return ["hall-none"];
-
-      return []; // both halls free → no color
+      return []; // both free => no color
     },
 
     eventClick: info => {
