@@ -92,11 +92,6 @@ button {
   background-color: #fff4b3 !important; /* yellow */
 }
 
-<<<<<<< HEAD
-.fc-timegrid-col .hall-none {
-  background-color: #e5e5e5 !important; /* grey */
-}
-=======
 /* BOTH halls free */
 .hall-both {
   background-color: #e6ffe6 !important; /* light green */
@@ -111,4 +106,3 @@ button {
 .hall-none {
   background-color: #eeeeee !important; /* light grey */
 }
->>>>>>> parent of 307a969 (verifying hall availiability)

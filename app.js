@@ -13,24 +13,6 @@ const calendarEl = document.getElementById("calendar");
 const deleteBtn = document.getElementById("deleteLesson");
 const lessonTypeSelect = document.getElementById("lessonType");
 
-<<<<<<< HEAD
-/* ===============================
-   HALL AVAILABILITY CONFIG
-   ===============================
-
-   day: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri
-   ranges use 24h format
-*/
-
-const hallRules = {
-  1: [{ from: 18, to: 22, status: "none" }],        // Mon
-  2: [{ from: 18, to: 22, status: "small-only" }],  // Tue
-  3: [{ from: 18, to: 22, status: "none" }],        // Wed
-  4: [{ from: 18, to: 22, status: "small-only" }],  // Thu
-  5: [{ from: 18, to: 22, status: "small-only" }]   // Fri
-};
-=======
->>>>>>> parent of 307a969 (verifying hall availiability)
 
 let calendar;
 let selectedEvent = null;
