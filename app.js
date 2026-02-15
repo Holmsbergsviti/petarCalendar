@@ -74,7 +74,6 @@ function getHallBackgroundEvents(start, end) {
   for (let ts = start.getTime(); ts < end.getTime(); ts += dayMs) {
     const d = new Date(ts);
     const day = d.getDay();
-    if (day === 0 || day === 6) continue; // skip weekends (remove if you want weekends too)
 
     const year = d.getFullYear();
     const month = d.getMonth();
