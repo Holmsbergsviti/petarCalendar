@@ -27,8 +27,8 @@ const groupColor = "#8b5cf6";
 // status: "small-only" | "none"
 const hallSchedule = [
   { day: 1, from: "18:00", to: "22:00", status: "none" },        // Mon after 6: both taken
-  { day: 3, from: "18:00", to: "22:00", status: "none" },        // Wed after 6: both taken
-
+  //{ day: 3, from: "18:00", to: "22:00", status: "none" },        // Wed after 6: both taken
+  { day: 6, from: "10:00", to: "12:00", status: "small-only" },
   { day: 2, from: "18:00", to: "22:00", status: "small-only" },  // Tue after 6: only small free
   { day: 4, from: "18:00", to: "22:00", status: "small-only" },  // Thu after 6: only small free
   { day: 5, from: "18:00", to: "22:00", status: "small-only" }   // Fri after 6: only small free
