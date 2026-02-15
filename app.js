@@ -21,19 +21,17 @@ let selectedStart = null;
 const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
 const groupColor = "#8b5cf6";
 
-// ================== HALL SCHEDULE (EDIT THIS ONLY) ==================
-// day: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 0=Sun
-// from/to: "HH:MM" (24h)
-// status: "small-only" | "none"
 const hallSchedule = [
-  { day: 1, from: "18:00", to: "22:00", status: "none" },        // Mon after 6: both taken
-  //{ day: 3, from: "18:00", to: "22:00", status: "none" },        // Wed after 6: both taken
-  { day: 6, from: "10:00", to: "12:00", status: "small-only" },
-  { day: 2, from: "18:00", to: "22:00", status: "small-only" },  // Tue after 6: only small free
-  { day: 4, from: "18:00", to: "22:00", status: "small-only" },  // Thu after 6: only small free
-  { day: 5, from: "18:00", to: "22:00", status: "small-only" }   // Fri after 6: only small free
+  { day: 1, from: "18:00", to: "22:00", status: "none" },
+
+  { day: 2, from: "18:00", to: "22:00", status: "small-only" },
+
+  { day: 3, from: "15:00", to: "17:00", status: "big-only" },  // NEW
+
+  { day: 4, from: "18:00", to: "22:00", status: "small-only" },
+
+  { day: 5, from: "18:00", to: "22:00", status: "small-only" }
 ];
-// ====================================================================
 
 function getEventColor(coachList, lessonType = "class") {
   if (lessonType === "group") return groupColor;
@@ -123,9 +121,10 @@ function timeToMinutes(t) {
 }
 
 function statusToColor(status) {
-  if (status === "none") return "rgba(160,160,160,0.25)";        // grey
-  if (status === "small-only") return "rgba(255,210,80,0.25)";   // yellow
-  return null;
+  if (status === "none") return "rgba(160,160,160,0.25)";        // both taken (grey)
+  if (status === "small-only") return "rgba(255,210,80,0.25)";   // only small free (yellow)
+  if (status === "big-only") return "rgba(120,180,255,0.25)";    // only big free (blue)
+  return null; // both free (no color)
 }
 
 function formatOrdinal(n){
