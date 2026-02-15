@@ -30,7 +30,8 @@ const hallSchedule = [
 
   { day: 4, from: "18:00", to: "22:00", status: "small-only" },
 
-  { day: 5, from: "18:00", to: "22:00", status: "small-only" }
+  { day: 5, from: "18:00", to: "22:00", status: "small-only" },
+  { day: 6, from: "09:00", to: "12:00", status: "big-only" }
 ];
 
 function getEventColor(coachList, lessonType = "class") {
