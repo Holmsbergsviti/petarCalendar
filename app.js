@@ -97,7 +97,7 @@ function getHallBackgroundEvents(start, end) {
         end: endTime,
         display: "background",
         allDay: false,
-        backgroundColor: bg,
+        color: bg,
         extendedProps: { isHall: true, status: r.status }
       });
     }
@@ -121,7 +121,7 @@ function timeToMinutes(t) {
 }
 
 function statusToColor(status) {
-  if (status === "none") return "rgba(160,160,160,0.25)";        // both taken (grey)
+  if (status === "none") return "rgba(202, 33, 33, 0.25)";        // both taken (grey)
   if (status === "small-only") return "rgba(255,210,80,0.25)";   // only small free (yellow)
   if (status === "big-only") return "rgba(120,180,255,0.25)";    // only big free (blue)
   return null; // both free (no color)
