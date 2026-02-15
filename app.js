@@ -77,7 +77,7 @@ function getHallBackgroundEvents(start, end) {
         end: after6End,
         display: "background",
         allDay: false,
-        color: "rgba(220,38,38,0.2)",
+        backgroundColor: "rgba(220,38,38,0.2)",
         extendedProps: { isHall: true }
       });
     }
@@ -88,7 +88,7 @@ function getHallBackgroundEvents(start, end) {
         end: after6End,
         display: "background",
         allDay: false,
-        color: "rgba(112, 74, 8, 0.2)",
+        backgroundColor: "rgba(112, 74, 8, 0.2)",
         extendedProps: { isHall: true }
       });
     }
