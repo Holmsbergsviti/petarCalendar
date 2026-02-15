@@ -13,6 +13,7 @@ const calendarEl = document.getElementById("calendar");
 const deleteBtn = document.getElementById("deleteLesson");
 const lessonTypeSelect = document.getElementById("lessonType");
 
+<<<<<<< HEAD
 /* ===============================
    HALL AVAILABILITY CONFIG
    ===============================
@@ -28,6 +29,8 @@ const hallRules = {
   4: [{ from: 18, to: 22, status: "small-only" }],  // Thu
   5: [{ from: 18, to: 22, status: "small-only" }]   // Fri
 };
+=======
+>>>>>>> parent of 307a969 (verifying hall availiability)
 
 let calendar;
 let selectedEvent = null;
@@ -80,22 +83,6 @@ function formatOrdinal(n){
   }
 }
 
-function getHallStatus(date) {
-  const day = date.getDay(); // 0=Sun
-  const hour = date.getHours();
-
-  const rules = hallRules[day];
-  if (!rules) return null;
-
-  for (let rule of rules) {
-    if (hour >= rule.from && hour < rule.to) {
-      return rule.status;
-    }
-  }
-
-  return null;
-}
-
 function getSelectedCoaches() {
   return Array.from(coachSelect.selectedOptions).map(o => o.value);
 }
@@ -139,16 +126,28 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     eventDidMount: info => {
       applyEventColors(info);
     },
-     
+
     slotLaneClassNames: function(arg) {
-      const status = getHallStatus(arg.date);
 
-      if (status === "small-only") return ["hall-small-only"];
-      if (status === "none") return ["hall-none"];
+      const date = arg.date;
+      const day = date.getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
+      const hour = date.getHours();
 
-      return []; // both halls free → no color
+      // MONDAY (1) & WEDNESDAY (3)
+      if (day === 1 || day === 3) {
+        if (hour < 18) return ["hall-both"];
+        return ["hall-none"];
+      }
+
+      // TUESDAY (2), THURSDAY (4), FRIDAY (5)
+      if (day === 2 || day === 4 || day === 5) {
+        if (hour < 18) return ["hall-both"];
+        return ["hall-small-only"];
+      }
+
+      return [];
     },
-
+    
     eventClick: info => {
       selectedEvent = info.event;
       const titleParts = selectedEvent.title.match(/^(.*) \((.*)\)$/);
