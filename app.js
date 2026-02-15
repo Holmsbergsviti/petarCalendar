@@ -81,15 +81,18 @@ function formatOrdinal(n){
 }
 
 function getHallStatus(date) {
-  const day = date.getDay();       // 0 Sun ... 6 Sat
-  const hour = date.getHours();    // 0..23
+  const day = date.getDay(); // 0=Sun
+  const hour = date.getHours();
 
   const rules = hallRules[day];
   if (!rules) return null;
 
-  for (const rule of rules) {
-    if (hour >= rule.from && hour < rule.to) return rule.status;
+  for (let rule of rules) {
+    if (hour >= rule.from && hour < rule.to) {
+      return rule.status;
+    }
   }
+
   return null;
 }
 
@@ -137,11 +140,13 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       applyEventColors(info);
     },
      
-    slotLaneClassNames: (arg) => {
+    slotLaneClassNames: function(arg) {
       const status = getHallStatus(arg.date);
+
       if (status === "small-only") return ["hall-small-only"];
       if (status === "none") return ["hall-none"];
-      return []; // both free => no color
+
+      return []; // both halls free → no color
     },
 
     eventClick: info => {
