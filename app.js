@@ -21,6 +21,20 @@ let selectedStart = null;
 const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
 const groupColor = "#8b5cf6";
 
+// ================== HALL SCHEDULE (EDIT THIS ONLY) ==================
+// day: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 0=Sun
+// from/to: "HH:MM" (24h)
+// status: "small-only" | "none"
+const hallSchedule = [
+  { day: 1, from: "18:00", to: "22:00", status: "none" },        // Mon after 6: both taken
+  { day: 3, from: "18:00", to: "22:00", status: "none" },        // Wed after 6: both taken
+
+  { day: 2, from: "18:00", to: "22:00", status: "small-only" },  // Tue after 6: only small free
+  { day: 4, from: "18:00", to: "22:00", status: "small-only" },  // Thu after 6: only small free
+  { day: 5, from: "18:00", to: "22:00", status: "small-only" }   // Fri after 6: only small free
+];
+// ====================================================================
+
 function getEventColor(coachList, lessonType = "class") {
   if (lessonType === "group") return groupColor;
 
@@ -54,7 +68,6 @@ function applyEventColors(info) {
   }
 }
 
-// -------- Hall Availability --------
 function getHallBackgroundEvents(start, end) {
   const events = [];
   const dayMs = 24 * 60 * 60 * 1000;
@@ -62,34 +75,32 @@ function getHallBackgroundEvents(start, end) {
   for (let ts = start.getTime(); ts < end.getTime(); ts += dayMs) {
     const d = new Date(ts);
     const day = d.getDay();
-
-    if (day === 0 || day === 6) continue;
+    if (day === 0 || day === 6) continue; // skip weekends (remove if you want weekends too)
 
     const year = d.getFullYear();
     const month = d.getMonth();
     const date = d.getDate();
-    const after6Start = new Date(year, month, date, 18, 0);
-    const after6End = new Date(year, month, date, 22, 0);
 
-    if ([1, 3].includes(day)) {
+    // get rules for this weekday
+    const rules = hallSchedule.filter(r => r.day === day);
+
+    for (const r of rules) {
+      const fromM = timeToMinutes(r.from);
+      const toM = timeToMinutes(r.to);
+
+      const startTime = new Date(year, month, date, Math.floor(fromM / 60), fromM % 60);
+      const endTime = new Date(year, month, date, Math.floor(toM / 60), toM % 60);
+
+      const bg = statusToColor(r.status);
+      if (!bg) continue;
+
       events.push({
-        start: after6Start,
-        end: after6End,
+        start: startTime,
+        end: endTime,
         display: "background",
         allDay: false,
-        backgroundColor: "rgba(220,38,38,0.2)",
-        extendedProps: { isHall: true }
-      });
-    }
-
-    if ([2, 4, 5].includes(day)) {
-      events.push({
-        start: after6Start,
-        end: after6End,
-        display: "background",
-        allDay: false,
-        backgroundColor: "rgba(112, 74, 8, 0.2)",
-        extendedProps: { isHall: true }
+        backgroundColor: bg,
+        extendedProps: { isHall: true, status: r.status }
       });
     }
   }
@@ -106,6 +117,17 @@ function renderHallAvailability() {
 }
 
 // -------- Helpers --------
+function timeToMinutes(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function statusToColor(status) {
+  if (status === "none") return "rgba(160,160,160,0.25)";        // grey
+  if (status === "small-only") return "rgba(255,210,80,0.25)";   // yellow
+  return null;
+}
+
 function formatOrdinal(n){
   if(n>3 && n<21) return n+"th";
   switch(n%10){
