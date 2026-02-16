@@ -22,16 +22,26 @@ const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0
 const groupColor = "#8b5cf6";
 
 const hallSchedule = [
+  { day: 1, from: "10:30", to: "11:30", status: "small-only" },
   { day: 1, from: "18:00", to: "22:00", status: "none" },
 
+  { day: 2, from: "11:00", to: "12:00", status: "small-only" },
   { day: 2, from: "18:00", to: "22:00", status: "small-only" },
 
-  { day: 3, from: "15:00", to: "17:00", status: "big-only" },  // NEW
+  { day: 3, from: "18:00", to: "22:00", status: "big-only" },
 
+  { day: 4, from: "11:00", to: "12:00", status: "small-only" },
   { day: 4, from: "18:00", to: "22:00", status: "small-only" },
 
-  { day: 5, from: "18:00", to: "22:00", status: "small-only" },
-  { day: 6, from: "09:00", to: "12:00", status: "big-only" }
+  { day: 5, from: "10:30", to: "11:30", status: "small-only" },
+  { day: 5, from: "18:00", to: "20:00", status: "small-only" },
+
+  { day: 6, from: "09:00", to: "12:00", status: "small-only" },
+  { day: 6, from: "18:00", to: "20:00", status: "small-only" },
+
+  { day: 7, from: "18:00", to: "22:00", status: "small-only" }
+  
+  
 ];
 
 function getEventColor(coachList, lessonType = "class") {
