@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where, limit } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 import { db } from "./firebase.js";
 
 const modal = document.getElementById("lessonModal");
@@ -157,7 +157,13 @@ async function materializePastRepeats(parentId, baseStartISO, baseEndISO, title,
       end: occEnd.toISOString(),
       repeatWeekly: false,
       parentId,
-      occStart: occStart.toISOString()
+      extendedProps: {
+        docId: docSnap.id,     // parent lesson id
+        coach,
+        lessonType,
+        repeatWeekly,
+        occStart: startDate.toISOString()
+      }
     });
   }
 }
@@ -291,6 +297,16 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
   calendar.addEventSource(async (fetchInfo, successCallback, failureCallback) => {
     try {
+      // Load all cancel exceptions (small app, so ok to load all)
+      const exSnap = await getDocs(collection(db, "repeat_exceptions"));
+      const cancelled = new Set();
+      exSnap.forEach(ex => {
+        const x = ex.data();
+        if (x.type === "cancel") {
+          cancelled.add(`${x.parentId}__${x.occStart}`);
+        }
+      });
+
       const snapshot = await getDocs(collection(db, "lessons"));
       const events = [];
 
@@ -314,6 +330,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
         // Helper to build one event object
         const pushEvent = (startDate) => {
+          const key = `${docSnap.id}__${startDate.toISOString()}`;
+          if (cancelled.has(key)) return;
           const endDate = addMinutes(startDate, durationMins);
 
           // only include if inside visible range
@@ -387,18 +405,42 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   deleteBtn.onclick = async () => {
     if (!selectedEvent) return;
 
+    const isRepeating = !!selectedEvent.extendedProps.repeatWeekly;
+    const parentId = selectedEvent.extendedProps.docId;
+    const occStart = selectedEvent.extendedProps.occStart;
+
+    // If it is a repeating occurrence -> cancel ONLY THIS WEEK
+    if (isRepeating && parentId && occStart) {
+      if (!confirm("Cancel this lesson for this week only? (Future weeks stay)")) return;
+
+      try {
+        await addDoc(collection(db, "repeat_exceptions"), {
+          parentId,
+          occStart,
+          type: "cancel"
+        });
+
+        modal.classList.add("hidden");
+        selectedEvent = null;
+        calendar.refetchEvents();
+        alert("🗓️ Cancelled for this week only");
+      } catch (e) {
+        console.error(e);
+        alert("❌ Failed to cancel");
+      }
+      return;
+    }
+
+    // Normal (non-repeating) lesson -> delete permanently
     if (!confirm(`Delete lesson "${selectedEvent.title}"?`)) return;
 
     try {
       const lessonId = selectedEvent.extendedProps.docId;
-      if (lessonId) {
-        await deleteDoc(doc(db, "lessons", lessonId));
-      }
+      if (lessonId) await deleteDoc(doc(db, "lessons", lessonId));
 
-      selectedEvent.remove();
       modal.classList.add("hidden");
       selectedEvent = null;
-
+      calendar.refetchEvents();
       alert("🗑 Lesson deleted");
     } catch (e) {
       console.error(e);
