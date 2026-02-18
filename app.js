@@ -12,7 +12,8 @@ const addLessonBtn = document.getElementById("addLessonBtn");
 const calendarEl = document.getElementById("calendar");
 const deleteBtn = document.getElementById("deleteLesson");
 const lessonTypeSelect = document.getElementById("lessonType");
-
+const repeatWeeklyCheckbox = document.getElementById("repeatWeekly");
+const repeatWeekly = repeatWeeklyCheckbox.checked;
 
 let calendar;
 let selectedEvent = null;
@@ -123,6 +124,26 @@ function renderHallAvailability() {
 }
 
 // -------- Helpers --------
+function weekStartMonday(date) {
+  const d = new Date(date);
+  const day = (d.getDay() + 6) % 7; // Mon=0 ... Sun=6
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - day);
+  return d;
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function addMinutes(date, mins) {
+  const d = new Date(date);
+  d.setMinutes(d.getMinutes() + mins);
+  return d;
+}
+
 function timeToMinutes(t) {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
@@ -174,12 +195,13 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     },
 
     select: info => {
-      if(window.innerWidth > 500){ 
+      if(window.innerWidth > 500){    
         selectedStart = info.start;
         selectedEvent = null;
         titleInput.value = "";
         lessonDateInput.valueAsDate = info.start;
         lessonTimeInput.value = info.start.toTimeString().slice(0,5);
+        repeatWeeklyCheckbox.checked = false;
         modal.classList.remove("hidden");
         deleteBtn.classList.add("hidden");
       }
@@ -196,6 +218,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       titleInput.value = titleParts ? titleParts[1] : selectedEvent.title;
       lessonDateInput.valueAsDate = new Date(selectedEvent.start);
       lessonTimeInput.value = selectedEvent.start.toTimeString().slice(0,5);
+      repeatWeeklyCheckbox.checked = !!selectedEvent.extendedProps.repeatWeekly;
       const coachVal = titleParts ? titleParts[2].split(", ") : ["Vlad"];
       coachSelect.value = coachVal.length === 1 ? coachVal[0] : "Vlad"; // default single selection for now
       modal.classList.remove("hidden");
@@ -228,9 +251,83 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     }
   });
 
+  calendar.addEventSource(async (fetchInfo, successCallback, failureCallback) => {
+    try {
+      const snapshot = await getDocs(collection(db, "lessons"));
+      const events = [];
+
+      const rangeStart = fetchInfo.start;
+      const rangeEnd = fetchInfo.end;
+      const viewWeekStart = weekStartMonday(rangeStart);
+
+      snapshot.forEach(docSnap => {
+        const d = docSnap.data();
+
+        const title = d.title;
+        const coach = d.coach;
+        const lessonType = d.lessonType || "class";
+        const repeatWeekly = !!d.repeatWeekly;
+
+        const baseStart = new Date(d.start);
+        const baseEnd = new Date(d.end);
+
+        const durationMins = Math.round((baseEnd - baseStart) / 60000);
+
+        // Helper to build one event object
+        const pushEvent = (startDate) => {
+          const endDate = addMinutes(startDate, durationMins);
+
+          // only include if inside visible range
+          if (endDate <= rangeStart || startDate >= rangeEnd) return;
+
+          events.push({
+            title: Array.isArray(coach) ? `${title} (${coach.join(", ")})` : `${title} (${coach})`,
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+            backgroundColor: getEventColor(coach, lessonType),
+            borderColor: getEventColor(coach, lessonType),
+            extendedProps: {
+              docId: docSnap.id,
+              coach,
+              lessonType,
+              repeatWeekly
+            }
+          });
+        };
+
+        if (!repeatWeekly) {
+          // normal one-time lesson
+          pushEvent(baseStart);
+          return;
+        }
+
+        // repeating weekly: generate ONLY for the visible week(s)
+        // We align the occurrence week to the calendar’s view week.
+        const baseWeekStart = weekStartMonday(baseStart);
+        const weeksOffset = Math.round((viewWeekStart - baseWeekStart) / (7 * 24 * 60 * 60 * 1000));
+
+        // occurrence start = baseStart shifted by N weeks
+        const occStart = addDays(baseStart, weeksOffset * 7);
+        pushEvent(occStart);
+
+        // If the view spans > 1 week (rare), generate the next one too
+        const occStartNext = addDays(occStart, 7);
+        pushEvent(occStartNext);
+      });
+
+      successCallback(events);
+    } catch (e) {
+      console.error(e);
+      failureCallback(e);
+    }
+  });
+
   calendar.render();
   renderHallAvailability();
-  calendar.on('datesSet', () => renderHallAvailability());
+  calendar.on('datesSet', () => {
+    renderHallAvailability();
+    calendar.refetchEvents();
+  });
 
   // Load lessons
   const snapshot = await getDocs(collection(db,"lessons"));
@@ -258,6 +355,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     titleInput.value = "";
     selectedStart = null;
     selectedEvent = null;
+    repeatWeeklyCheckbox.checked = false;
     modal.classList.remove("hidden");
     deleteBtn.classList.add("hidden");
   };
@@ -310,6 +408,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
             start:start.toISOString(),
             end:end.toISOString()
           });
+          calendar.refetchEvents();
         }
         selectedEvent.setProp("title", Array.isArray(coach) ? `${title} (${coach.join(", ")})` : `${title} (${coach})`);
         selectedEvent.setStart(start);
@@ -376,7 +475,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
           lessonType
         }
       });
-
+      calendar.refetchEvents();
+      
       alert("✅ Lesson added");
       modal.classList.add("hidden");
       selectedStart = null;
