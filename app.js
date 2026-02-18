@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where, limit } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 import { db } from "./firebase.js";
 
 const modal = document.getElementById("lessonModal");
@@ -123,6 +123,45 @@ function renderHallAvailability() {
 }
 
 // -------- Helpers --------
+async function materializePastRepeats(parentId, baseStartISO, baseEndISO, title, coach, lessonType) {
+  const baseStart = new Date(baseStartISO);
+  const baseEnd = new Date(baseEndISO);
+  const durationMins = Math.round((baseEnd - baseStart) / 60000);
+
+  const todayWeekStart = weekStartMonday(new Date());
+  const baseWeekStart = weekStartMonday(baseStart);
+
+  // how many full weeks have passed BEFORE this week
+  const weeksPassed = Math.floor((todayWeekStart - baseWeekStart) / (7 * 24 * 60 * 60 * 1000));
+  if (weeksPassed <= 0) return;
+
+  for (let w = 0; w < weeksPassed; w++) {
+    const occStart = addDays(baseStart, w * 7);
+    const occEnd = addMinutes(occStart, durationMins);
+
+    // Dedup check: does this occurrence already exist?
+    const qy = query(
+      collection(db, "lessons"),
+      where("parentId", "==", parentId),
+      where("occStart", "==", occStart.toISOString()),
+      limit(1)
+    );
+    const existing = await getDocs(qy);
+    if (!existing.empty) continue;
+
+    await addDoc(collection(db, "lessons"), {
+      title,
+      coach,
+      lessonType,
+      start: occStart.toISOString(),
+      end: occEnd.toISOString(),
+      repeatWeekly: false,
+      parentId,
+      occStart: occStart.toISOString()
+    });
+  }
+}
+
 function weekStartMonday(date) {
   const d = new Date(date);
   const day = (d.getDay() + 6) % 7; // Mon=0 ... Sun=6
@@ -258,6 +297,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       const rangeStart = fetchInfo.start;
       const rangeEnd = fetchInfo.end;
       const viewWeekStart = weekStartMonday(rangeStart);
+      const todayWeekStart = weekStartMonday(new Date());
 
       snapshot.forEach(docSnap => {
         const d = docSnap.data();
@@ -303,7 +343,10 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         // repeating weekly: generate ONLY for the visible week(s)
         // We align the occurrence week to the calendar’s view week.
         const baseWeekStart = weekStartMonday(baseStart);
-        const weeksOffset = Math.round((viewWeekStart - baseWeekStart) / (7 * 24 * 60 * 60 * 1000));
+        const rawOffset = Math.round((viewWeekStart - baseWeekStart) / (7 * 24 * 60 * 60 * 1000));
+        const minOffset = Math.round((todayWeekStart - baseWeekStart) / (7 * 24 * 60 * 60 * 1000));
+        const weeksOffset = Math.max(rawOffset, minOffset); // never generate in the past
+
 
         // occurrence start = baseStart shifted by N weeks
         const occStart = addDays(baseStart, weeksOffset * 7);
@@ -365,36 +408,72 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
   // Save lesson
   saveBtn.onclick = async () => {
-  const title = titleInput.value.trim();
-  const coach = getSelectedCoaches();
-  const lessonType = lessonTypeSelect.value;
-  const repeatWeekly = repeatWeeklyCheckbox.checked;
+    const title = titleInput.value.trim();
+    const coach = getSelectedCoaches();
+    const lessonType = lessonTypeSelect.value;
+    const repeatWeekly = repeatWeeklyCheckbox.checked;
 
-  if (!title) { alert("Enter lesson name"); return; }
+    if (!title) { alert("Enter lesson name"); return; }
 
-  // Build start date
-  let start;
-  if (selectedEvent) {
-    start = new Date(lessonDateInput.value);
-    const [h, m] = lessonTimeInput.value.split(":").map(Number);
-    start.setHours(h, m, 0, 0);
-  } else if (selectedStart) {
-    start = selectedStart;
-  } else {
-    const [year, month, day] = lessonDateInput.value.split("-").map(Number);
-    const [hour, minute] = lessonTimeInput.value.split(":").map(Number);
-    start = new Date(year, month - 1, day, hour, minute);
-  }
+    // Build start date
+    let start;
+    if (selectedEvent) {
+      start = new Date(lessonDateInput.value);
+      const [h, m] = lessonTimeInput.value.split(":").map(Number);
+      start.setHours(h, m, 0, 0);
+    } else if (selectedStart) {
+      start = selectedStart;
+    } else {
+      const [year, month, day] = lessonDateInput.value.split("-").map(Number);
+      const [hour, minute] = lessonTimeInput.value.split(":").map(Number);
+      start = new Date(year, month - 1, day, hour, minute);
+    }
 
-  const duration = lessonType === "group" ? 60 : 45;
-  const end = new Date(start.getTime() + duration * 60000);
+    const duration = lessonType === "group" ? 60 : 45;
+    const end = new Date(start.getTime() + duration * 60000);
 
-  // EDIT existing
-  if (selectedEvent) {
+    // EDIT existing
+    
+    if (selectedEvent) {
+      try {
+        const lessonId = selectedEvent.extendedProps.docId;
+        const wasRepeating = !!selectedEvent.extendedProps.repeatWeekly;
+
+        if (wasRepeating && !repeatWeekly) {
+          // You are turning repeating OFF now → keep history
+          await materializePastRepeats(
+            selectedEvent.extendedProps.docId,     // parentId
+            selectedEvent.start.toISOString(),     // baseStart
+            selectedEvent.end.toISOString(),       // baseEnd
+            title, coach, lessonType               // lesson data
+          );
+        }
+
+        await updateDoc(doc(db, "lessons", lessonId), {
+          title,
+          coach,
+          lessonType,
+          repeatWeekly,
+          start: start.toISOString(),
+          end: end.toISOString()
+        });
+
+        alert("✅ Lesson updated");
+        modal.classList.add("hidden");
+        selectedEvent = null;
+        selectedStart = null;
+
+        calendar.refetchEvents(); // <-- redraw based on Firestore + repeating
+      } catch (e) {
+        console.error(e);
+        alert("❌ Failed to update");
+      }
+      return;
+    }
+
+    // ADD new
     try {
-      const lessonId = selectedEvent.extendedProps.docId;
-
-      await updateDoc(doc(db, "lessons", lessonId), {
+      await addDoc(collection(db, "lessons"), {
         title,
         coach,
         lessonType,
@@ -403,40 +482,16 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         end: end.toISOString()
       });
 
-      alert("✅ Lesson updated");
+      alert("✅ Lesson added");
       modal.classList.add("hidden");
-      selectedEvent = null;
       selectedStart = null;
 
       calendar.refetchEvents(); // <-- redraw based on Firestore + repeating
     } catch (e) {
       console.error(e);
-      alert("❌ Failed to update");
+      alert("❌ Failed to add lesson");
     }
-    return;
-  }
-
-  // ADD new
-  try {
-    await addDoc(collection(db, "lessons"), {
-      title,
-      coach,
-      lessonType,
-      repeatWeekly,
-      start: start.toISOString(),
-      end: end.toISOString()
-    });
-
-    alert("✅ Lesson added");
-    modal.classList.add("hidden");
-    selectedStart = null;
-
-    calendar.refetchEvents(); // <-- redraw based on Firestore + repeating
-  } catch (e) {
-    console.error(e);
-    alert("❌ Failed to add lesson");
-  }
-};
+  };
 
   // Cancel modal
   cancelBtn.onclick = () => {
