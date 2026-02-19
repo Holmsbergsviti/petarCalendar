@@ -247,7 +247,13 @@ function checkHallAvailability(start, end) {
   const startMins = start.getHours() * 60 + start.getMinutes();
   const endMins = end.getHours() * 60 + end.getMinutes();
   
+  // If times are not set properly, return available
+  if (startMins === 0 || endMins === 0) return { available: true, status: null };
+  
   const dayRules = hallSchedule.filter(r => r.day === dayOfWeek);
+  
+  // If no rules for this day, assume available
+  if (dayRules.length === 0) return { available: true, status: null };
   
   for (const rule of dayRules) {
     const ruleFromMins = timeToMinutes(rule.from);
@@ -407,6 +413,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         repeatEndDateLabel.style.display = "none";
         bulkEditOptions.style.display = "none";
         editingAllFuture = false;
+        timeConflictWarning.style.display = "none";
         modal.classList.remove("hidden");
         deleteBtn.classList.add("hidden");
       }
@@ -455,6 +462,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         });
       }
       
+      timeConflictWarning.style.display = "none";
       modal.classList.remove("hidden");
       deleteBtn.classList.remove("hidden");
     },
@@ -674,11 +682,11 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     const conflicts = checkTimeConflicts(start, end, selectedEvent ? selectedEvent.extendedProps.docId : null);
     const hallAvail = checkHallAvailability(start, end);
     
-    showTimeConflictWarning(conflicts, !hallAvail.available);
-
-    if (!hallAvail.available) {
-      alert("⚠️ Hall is not available at this time. Please choose a different time slot.");
-      return;
+    // Show warnings but don't block saving
+    if (conflicts.length > 0 || !hallAvail.available) {
+      showTimeConflictWarning(conflicts, !hallAvail.available);
+    } else {
+      timeConflictWarning.style.display = "none";
     }
 
     // EDIT existing
@@ -780,6 +788,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     selectedEvent = null;
     selectedStart = null;
     editingAllFuture = false;
+    timeConflictWarning.style.display = "none";
   };
 
   // Repeat weekly checkbox
