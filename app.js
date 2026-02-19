@@ -290,6 +290,7 @@ function showTimeConflictWarning(conflicts, hallConflict) {
 async function calculateStatistics(period) {
   const snapshot = await getDocs(collection(db, "lessons"));
   const now = new Date();
+  now.setHours(0, 0, 0, 0); // Start of today
   const stats = {
     total: 0,
     byCoach: {},
@@ -307,13 +308,15 @@ async function calculateStatistics(period) {
     startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   } else {
+    // Total: from beginning to now (past and current only)
     startDate = new Date(0);
-    endDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+    endDate = now;
   }
   
   snapshot.forEach(docSnap => {
     const d = docSnap.data();
     const lessonStart = new Date(d.start);
+    const repeatEndDate = d.repeatEndDate ? new Date(d.repeatEndDate) : null;
     
     // For repeating lessons, count occurrences in period
     if (d.repeatWeekly) {
@@ -323,7 +326,12 @@ async function calculateStatistics(period) {
       
       for (let w = 0; w <= weeksInRange; w++) {
         const occStart = addDays(lessonStart, w * 7);
-        if (occStart >= startDate && occStart < endDate) {
+        
+        // Skip if past repeat end date
+        if (repeatEndDate && occStart > repeatEndDate) continue;
+        
+        // Only count if within range AND not in the future
+        if (occStart >= startDate && occStart <= endDate) {
           const coaches = Array.isArray(d.coach) ? d.coach : [d.coach];
           const type = d.lessonType || "class";
           
@@ -336,7 +344,7 @@ async function calculateStatistics(period) {
           stats.byType[type] = (stats.byType[type] || 0) + 1;
         }
       }
-    } else if (lessonStart >= startDate && lessonStart < endDate) {
+    } else if (lessonStart >= startDate && lessonStart <= endDate) {
       const coaches = Array.isArray(d.coach) ? d.coach : [d.coach];
       const type = d.lessonType || "class";
       
