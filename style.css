@@ -11,9 +11,10 @@ h1 {
 
 #calendar {
   max-width: 1200px;
-  margin: 0 auto;
+  margin: 20px auto;
   background: white;
   border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 /* Modal */
@@ -34,6 +35,9 @@ h1 {
   padding: 20px;
   border-radius: 12px;
   width: 320px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 label {
@@ -44,6 +48,7 @@ label {
 input, select {
   width: 100%;
   padding: 8px;
+  box-sizing: border-box;
 }
 
 .modal-buttons {
@@ -59,6 +64,11 @@ button {
   background: #3b82f6;
   color: white;
   cursor: pointer;
+  font-size: 14px;
+}
+
+button:hover {
+  opacity: 0.9;
 }
 
 .secondary { background: #999; }
@@ -75,14 +85,64 @@ button {
   background: #3b82f6;
   color: white;
   border: none;
+  flex: none;
+}
+
+.coach-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.coach-color-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.2);
 }
 
 /* Desktop */
 @media (min-width: 600px) {
   .fc-timegrid-slot { height: 20px !important; }
+  
+  .modal-content {
+    width: 400px;
+  }
 }
 
 /* Mobile */
 @media (max-width: 599px) {
   .fc-timegrid-slot { height: 40px !important; }
+  
+  .modal-content {
+    width: 95vw;
+    max-width: 350px;
+    max-height: 95vh;
+  }
+  
+  .floating-btn {
+    bottom: 15px;
+    right: 15px;
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+  }
+  
+  #filterControls {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  #coachFilter, #typeFilter {
+    width: 100%;
+  }
+  
+  button {
+    font-size: 12px;
+    padding: 6px;
+  }
 }

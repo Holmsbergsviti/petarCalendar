@@ -13,6 +13,26 @@
 
 <h1>Dance Lessons Calendar</h1>
 
+<div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; max-width:1200px; margin:10px auto; padding:0 10px;">
+  <div id="coachLegend" style="display:flex; gap:15px; font-size:12px; flex-wrap:wrap;"></div>
+  <div id="filterControls" style="display:flex; gap:8px; align-items:center;">
+    <label style="font-size:12px;">Filter:</label>
+    <select id="coachFilter" style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+      <option value="">All Coaches</option>
+      <option value="Vlad">Vlad</option>
+      <option value="Ana">Ana</option>
+      <option value="Petar Boss">Petar Boss</option>
+    </select>
+    <select id="typeFilter" style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+      <option value="">All Types</option>
+      <option value="class">Class</option>
+      <option value="group">Group</option>
+    </select>
+  </div>
+</div>
+
+</div>
+
 <div id="calendar"></div>
 
 <!-- Modal -->
@@ -51,12 +71,32 @@
       <input type="time" id="lessonTime">
     </label>
 
+    <label style="display:flex; align-items:center; gap:10px;">
+      <input type="checkbox" id="repeatWeekly" style="width:auto;">
+      Repeat every week
+    </label>
+
+    <label id="repeatEndDateLabel" style="display:none;">
+      Repeat until (optional)
+      <input type="date" id="repeatEndDate">
+    </label>
+
+    <div id="bulkEditOptions" style="display:none; margin-top:12px; padding:12px; background:#f0f0f0; border-radius:6px;">
+      <p style="margin:0 0 10px 0; font-weight:bold; font-size:12px;">Edit all future occurrences:</p>
+      <button type="button" id="editAllFutureBtn" style="width:100%; margin-bottom:8px; background:#9333ea; padding:8px; border-radius:6px; border:none; color:white; cursor:pointer;">Edit All Future</button>
+    </div>
+    
     <div class="modal-buttons">
       <button id="saveLesson">Save</button>
       <button id="deleteLesson" class="danger hidden">Delete</button>
       <button id="cancelLesson" class="secondary">Cancel</button>
     </div>
   </div>
+</div>
+
+<div id="timeConflictWarning" style="position:fixed; top:10px; right:10px; background:#fca5a5; padding:12px; border-radius:6px; display:none; max-width:300px; box-shadow:0 2px 8px rgba(0,0,0,0.2); z-index:999;">
+  <strong>⚠️ Time Conflict</strong>
+  <p id="conflictMessage" style="margin:5px 0 0 0; font-size:12px;"></p>
 </div>
 
 <button id="addLessonBtn" class="floating-btn">+</button>
