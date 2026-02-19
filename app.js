@@ -13,10 +13,25 @@ const calendarEl = document.getElementById("calendar");
 const deleteBtn = document.getElementById("deleteLesson");
 const lessonTypeSelect = document.getElementById("lessonType");
 const repeatWeeklyCheckbox = document.getElementById("repeatWeekly");
+const repeatEndDateInput = document.getElementById("repeatEndDate");
+const repeatEndDateLabel = document.getElementById("repeatEndDateLabel");
+const bulkEditOptions = document.getElementById("bulkEditOptions");
+const editAllFutureBtn = document.getElementById("editAllFutureBtn");
+const statsPanel = document.getElementById("statsPanel");
+const toggleStatsBtn = document.getElementById("toggleStatsBtn");
+const closeStatsBtn = document.getElementById("closeStatsBtn");
+const statsContent = document.getElementById("statsContent");
+const statsPeriod = document.getElementById("statsPeriod");
+const coachFilter = document.getElementById("coachFilter");
+const typeFilter = document.getElementById("typeFilter");
+const timeConflictWarning = document.getElementById("timeConflictWarning");
+const conflictMessage = document.getElementById("conflictMessage");
+const coachLegend = document.getElementById("coachLegend");
 
 let calendar;
 let selectedEvent = null;
 let selectedStart = null;
+let editingAllFuture = false;
 
 const coachColors = { "Vlad": "#3b82f6", "Ana": "#10b981", "Petar Boss": "#f59e0b" };
 const groupColor = "#8b5cf6";
@@ -209,6 +224,154 @@ function getSelectedCoaches() {
   return Array.from(coachSelect.selectedOptions).map(o => o.value);
 }
 
+// -------- Validation & Conflict Detection --------
+function checkTimeConflicts(start, end, excludeEventId = null) {
+  const conflicts = [];
+  calendar.getEvents().forEach(ev => {
+    if (excludeEventId && ev.extendedProps.docId === excludeEventId) return;
+    if (ev.extendedProps.isHall) return; // skip hall availability events
+    
+    const evStart = new Date(ev.start);
+    const evEnd = new Date(ev.end);
+    
+    // Check if times overlap
+    if (start < evEnd && end > evStart) {
+      conflicts.push(ev);
+    }
+  });
+  return conflicts;
+}
+
+function checkHallAvailability(start, end) {
+  const dayOfWeek = start.getDay();
+  const startMins = start.getHours() * 60 + start.getMinutes();
+  const endMins = end.getHours() * 60 + end.getMinutes();
+  
+  const dayRules = hallSchedule.filter(r => r.day === dayOfWeek);
+  
+  for (const rule of dayRules) {
+    const ruleFromMins = timeToMinutes(rule.from);
+    const ruleToMins = timeToMinutes(rule.to);
+    
+    // Check if requested time is within any available slot
+    if (startMins >= ruleFromMins && endMins <= ruleToMins) {
+      return { available: true, status: rule.status };
+    }
+  }
+  
+  return { available: false, status: null };
+}
+
+function showTimeConflictWarning(conflicts, hallConflict) {
+  if (conflicts.length === 0 && !hallConflict) {
+    timeConflictWarning.style.display = "none";
+    return;
+  }
+  
+  let message = "";
+  if (hallConflict) {
+    message += "Hall not available at this time.\n";
+  }
+  if (conflicts.length > 0) {
+    message += `${conflicts.length} lesson(s) overlap with this time.`;
+  }
+  
+  conflictMessage.textContent = message;
+  timeConflictWarning.style.display = "block";
+}
+
+// -------- Statistics --------
+async function calculateStatistics(period) {
+  const snapshot = await getDocs(collection(db, "lessons"));
+  const now = new Date();
+  const stats = {
+    total: 0,
+    byCoach: {},
+    byType: {},
+    byCoachType: {}
+  };
+  
+  let startDate, endDate;
+  
+  if (period === "week") {
+    startDate = weekStartMonday(now);
+    endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 7);
+  } else if (period === "month") {
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  } else {
+    startDate = new Date(0);
+    endDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+  }
+  
+  snapshot.forEach(docSnap => {
+    const d = docSnap.data();
+    const lessonStart = new Date(d.start);
+    
+    // For repeating lessons, count occurrences in period
+    if (d.repeatWeekly) {
+      const baseWeekStart = weekStartMonday(lessonStart);
+      const rangeWeekStart = weekStartMonday(startDate);
+      const weeksInRange = Math.floor((endDate - rangeWeekStart) / (7 * 24 * 60 * 60 * 1000));
+      
+      for (let w = 0; w <= weeksInRange; w++) {
+        const occStart = addDays(lessonStart, w * 7);
+        if (occStart >= startDate && occStart < endDate) {
+          const coaches = Array.isArray(d.coach) ? d.coach : [d.coach];
+          const type = d.lessonType || "class";
+          
+          stats.total++;
+          coaches.forEach(coach => {
+            stats.byCoach[coach] = (stats.byCoach[coach] || 0) + 1;
+            const key = `${coach}-${type}`;
+            stats.byCoachType[key] = (stats.byCoachType[key] || 0) + 1;
+          });
+          stats.byType[type] = (stats.byType[type] || 0) + 1;
+        }
+      }
+    } else if (lessonStart >= startDate && lessonStart < endDate) {
+      const coaches = Array.isArray(d.coach) ? d.coach : [d.coach];
+      const type = d.lessonType || "class";
+      
+      stats.total++;
+      coaches.forEach(coach => {
+        stats.byCoach[coach] = (stats.byCoach[coach] || 0) + 1;
+        const key = `${coach}-${type}`;
+        stats.byCoachType[key] = (stats.byCoachType[key] || 0) + 1;
+      });
+      stats.byType[type] = (stats.byType[type] || 0) + 1;
+    }
+  });
+  
+  return stats;
+}
+
+function renderStatistics(stats, period) {
+  let html = `<h3>${period === "week" ? "📅 This Week" : period === "month" ? "📅 This Month" : "📊 Total"}</h3>`;
+  html += `<div style="background:#f0f0f0; padding:10px; border-radius:6px; margin-bottom:15px;">`;
+  html += `<p style="margin:0; font-size:16px; font-weight:bold;">Total Lessons: <span style="color:#3b82f6;">${stats.total}</span></p>`;
+  html += `</div>`;
+  
+  html += `<h4>By Coach:</h4>`;
+  html += `<ul style="margin:0; padding-left:20px;">`;
+  Object.entries(stats.byCoach).forEach(([coach, count]) => {
+    const color = coachColors[coach] || "#999";
+    html += `<li style="margin-bottom:5px;"><span style="display:inline-block; width:12px; height:12px; background:${color}; border-radius:2px; margin-right:6px;"></span>${coach}: <strong>${count}</strong></li>`;
+  });
+  html += `</ul>`;
+  
+  html += `<h4>By Type:</h4>`;
+  html += `<ul style="margin:0; padding-left:20px;">`;
+  Object.entries(stats.byType).forEach(([type, count]) => {
+    const icon = type === "class" ? "👥" : "🎭";
+    html += `<li style="margin-bottom:5px;">${icon} ${type.charAt(0).toUpperCase() + type.slice(1)}: <strong>${count}</strong></li>`;
+  });
+  html += `</ul>`;
+  
+  statsContent.innerHTML = html;
+}
+
 // -------- Initialize Calendar --------
 document.addEventListener("DOMContentLoaded", async ()=>{
 
@@ -240,6 +403,10 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         lessonDateInput.valueAsDate = info.start;
         lessonTimeInput.value = info.start.toTimeString().slice(0,5);
         repeatWeeklyCheckbox.checked = false;
+        repeatEndDateInput.value = "";
+        repeatEndDateLabel.style.display = "none";
+        bulkEditOptions.style.display = "none";
+        editingAllFuture = false;
         modal.classList.remove("hidden");
         deleteBtn.classList.add("hidden");
       }
@@ -257,14 +424,27 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       lessonDateInput.valueAsDate = new Date(selectedEvent.start);
       lessonTimeInput.value = selectedEvent.start.toTimeString().slice(0,5);
       repeatWeeklyCheckbox.checked = !!selectedEvent.extendedProps.repeatWeekly;
+      
+      // Set repeat end date if exists
+      if (selectedEvent.extendedProps.repeatEndDate) {
+        repeatEndDateInput.valueAsDate = new Date(selectedEvent.extendedProps.repeatEndDate);
+      } else {
+        repeatEndDateInput.value = "";
+      }
+      
+      // Show bulk edit options if this is a repeating event
+      if (selectedEvent.extendedProps.repeatWeekly) {
+        bulkEditOptions.style.display = "block";
+      } else {
+        bulkEditOptions.style.display = "none";
+      }
+      
+      repeatEndDateLabel.style.display = repeatWeeklyCheckbox.checked ? "block" : "none";
+      
       const coachVal = titleParts ? titleParts[2].split(", ") : ["Vlad"];
-      coachSelect.value = coachVal.length === 1 ? coachVal[0] : "Vlad"; // default single selection for now
-      modal.classList.remove("hidden");
-      deleteBtn.classList.remove("hidden");
       lessonTypeSelect.value = selectedEvent.extendedProps.lessonType || "class";
-      // 🔽 ADD THIS BLOCK
+      
       const coaches = selectedEvent.extendedProps.coach;
-
       if (Array.isArray(coaches)) {
         Array.from(coachSelect.options).forEach(opt => {
           opt.selected = coaches.includes(opt.value);
@@ -274,6 +454,9 @@ document.addEventListener("DOMContentLoaded", async ()=>{
           opt.selected = opt.value === coaches;
         });
       }
+      
+      modal.classList.remove("hidden");
+      deleteBtn.classList.remove("hidden");
     },
 
     eventTouchStart: info => {
@@ -308,6 +491,9 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       const rangeEnd = fetchInfo.end;
       const viewWeekStart = weekStartMonday(rangeStart);
       const todayWeekStart = weekStartMonday(new Date());
+      
+      const selectedCoachFilter = coachFilter.value;
+      const selectedTypeFilter = typeFilter.value;
 
       snapshot.forEach(docSnap => {
         const d = docSnap.data();
@@ -316,6 +502,14 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         const coach = d.coach;
         const lessonType = d.lessonType || "class";
         const repeatWeekly = !!d.repeatWeekly;
+        const repeatEndDate = d.repeatEndDate ? new Date(d.repeatEndDate) : null;
+
+        // Apply filters
+        if (selectedCoachFilter) {
+          const coachList = Array.isArray(coach) ? coach : [coach];
+          if (!coachList.includes(selectedCoachFilter)) return;
+        }
+        if (selectedTypeFilter && lessonType !== selectedTypeFilter) return;
 
         const baseStart = new Date(d.start);
         const baseEnd = new Date(d.end);
@@ -342,7 +536,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
               coach,
               lessonType,
               repeatWeekly,
-              occStart: startDate.toISOString()
+              occStart: startDate.toISOString(),
+              repeatEndDate: repeatEndDate ? repeatEndDate.toISOString() : null
             }
           });
         };
@@ -354,20 +549,24 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         }
 
         // repeating weekly: generate ONLY for the visible week(s)
-        // We align the occurrence week to the calendar’s view week.
         const baseWeekStart = weekStartMonday(baseStart);
         const rawOffset = Math.round((viewWeekStart - baseWeekStart) / (7 * 24 * 60 * 60 * 1000));
         const minOffset = Math.round((todayWeekStart - baseWeekStart) / (7 * 24 * 60 * 60 * 1000));
-        const weeksOffset = Math.max(rawOffset, minOffset); // never generate in the past
+        let weeksOffset = Math.max(rawOffset, minOffset); // never generate in the past
 
-
-        // occurrence start = baseStart shifted by N weeks
-        const occStart = addDays(baseStart, weeksOffset * 7);
-        pushEvent(occStart);
-
-        // If the view spans > 1 week (rare), generate the next one too
-        const occStartNext = addDays(occStart, 7);
-        pushEvent(occStartNext);
+        // Generate occurrences
+        while (true) {
+          const occStart = addDays(baseStart, weeksOffset * 7);
+          
+          // Check if we're past the repeat end date
+          if (repeatEndDate && occStart > repeatEndDate) break;
+          
+          // Check if we're past the visible range
+          if (occStart >= rangeEnd) break;
+          
+          pushEvent(occStart);
+          weeksOffset++;
+        }
       });
 
       successCallback(events);
@@ -449,8 +648,10 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     const coach = getSelectedCoaches();
     const lessonType = lessonTypeSelect.value;
     const repeatWeekly = repeatWeeklyCheckbox.checked;
+    const repeatEndDate = repeatWeekly && repeatEndDateInput.value ? new Date(repeatEndDateInput.value) : null;
 
     if (!title) { alert("Enter lesson name"); return; }
+    if (!coach.length) { alert("Select at least one coach"); return; }
 
     // Build start date
     let start;
@@ -469,8 +670,18 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     const duration = lessonType === "group" ? 60 : 45;
     const end = new Date(start.getTime() + duration * 60000);
 
-    // EDIT existing
+    // Validate time slots
+    const conflicts = checkTimeConflicts(start, end, selectedEvent ? selectedEvent.extendedProps.docId : null);
+    const hallAvail = checkHallAvailability(start, end);
     
+    showTimeConflictWarning(conflicts, !hallAvail.available);
+
+    if (!hallAvail.available) {
+      alert("⚠️ Hall is not available at this time. Please choose a different time slot.");
+      return;
+    }
+
+    // EDIT existing
     if (selectedEvent) {
       try {
         const lessonId = selectedEvent.extendedProps.docId;
@@ -479,14 +690,14 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         if (wasRepeating && !repeatWeekly) {
           // You are turning repeating OFF now → keep history
           await materializePastRepeats(
-            selectedEvent.extendedProps.docId,     // parentId
-            selectedEvent.start.toISOString(),     // baseStart
-            selectedEvent.end.toISOString(),       // baseEnd
-            title, coach, lessonType               // lesson data
+            lessonId,
+            selectedEvent.start.toISOString(),
+            selectedEvent.end.toISOString(),
+            title, coach, lessonType
           );
         }
 
-        await updateDoc(doc(db, "lessons", lessonId), {
+        const updateData = {
           title,
           coach,
           lessonType,
@@ -494,14 +705,39 @@ document.addEventListener("DOMContentLoaded", async ()=>{
           start: start.toISOString(),
           end: end.toISOString(),
           occStart: start.toISOString()
-        });
+        };
+        
+        if (repeatEndDate) {
+          updateData.repeatEndDate = repeatEndDate.toISOString();
+        }
+
+        if (editingAllFuture && wasRepeating && repeatWeekly) {
+          // Update all future occurrences
+          const snapshot = await getDocs(query(
+            collection(db, "lessons"),
+            where("parentId", "==", lessonId)
+          ));
+          
+          for (const docSnap of snapshot.docs) {
+            const d = docSnap.data();
+            const occDate = new Date(d.occStart);
+            const selectedDate = new Date(lessonDateInput.value);
+            
+            if (occDate >= selectedDate) {
+              await updateDoc(doc(db, "lessons", docSnap.id), updateData);
+            }
+          }
+        } else {
+          await updateDoc(doc(db, "lessons", lessonId), updateData);
+        }
 
         alert("✅ Lesson updated");
         modal.classList.add("hidden");
         selectedEvent = null;
         selectedStart = null;
+        editingAllFuture = false;
 
-        calendar.refetchEvents(); // <-- redraw based on Firestore + repeating
+        calendar.refetchEvents();
       } catch (e) {
         console.error(e);
         alert("❌ Failed to update");
@@ -511,7 +747,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
     // ADD new
     try {
-      await addDoc(collection(db, "lessons"), {
+      const newData = {
         title,
         coach,
         lessonType,
@@ -519,13 +755,19 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         start: start.toISOString(),
         end: end.toISOString(),
         occStart: start.toISOString()
-      });
+      };
+      
+      if (repeatEndDate) {
+        newData.repeatEndDate = repeatEndDate.toISOString();
+      }
+
+      await addDoc(collection(db, "lessons"), newData);
 
       alert("✅ Lesson added");
       modal.classList.add("hidden");
       selectedStart = null;
 
-      calendar.refetchEvents(); // <-- redraw based on Firestore + repeating
+      calendar.refetchEvents();
     } catch (e) {
       console.error(e);
       alert("❌ Failed to add lesson");
@@ -537,6 +779,58 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     modal.classList.add("hidden");
     selectedEvent = null;
     selectedStart = null;
+    editingAllFuture = false;
   };
+
+  // Repeat weekly checkbox
+  repeatWeeklyCheckbox.onchange = () => {
+    repeatEndDateLabel.style.display = repeatWeeklyCheckbox.checked ? "block" : "none";
+  };
+
+  // Bulk edit button
+  editAllFutureBtn.onclick = () => {
+    editingAllFuture = !editingAllFuture;
+    editAllFutureBtn.style.background = editingAllFuture ? "#7c3aed" : "#9333ea";
+    editAllFutureBtn.textContent = editingAllFuture ? "✅ Edit All Future" : "Edit All Future";
+  };
+
+  // Statistics
+  toggleStatsBtn.onclick = async () => {
+    statsPanel.classList.remove("hidden");
+    const period = statsPeriod.value;
+    const stats = await calculateStatistics(period);
+    renderStatistics(stats, period);
+  };
+
+  closeStatsBtn.onclick = () => {
+    statsPanel.classList.add("hidden");
+  };
+
+  statsPeriod.onchange = async () => {
+    const period = statsPeriod.value;
+    const stats = await calculateStatistics(period);
+    renderStatistics(stats, period);
+  };
+
+  // Filter changes
+  coachFilter.onchange = () => {
+    calendar.refetchEvents();
+  };
+
+  typeFilter.onchange = () => {
+    calendar.refetchEvents();
+  };
+
+  // Render coach legend
+  function renderCoachLegend() {
+    coachLegend.innerHTML = "";
+    Object.entries(coachColors).forEach(([coach, color]) => {
+      const item = document.createElement("div");
+      item.className = "coach-legend-item";
+      item.innerHTML = `<div class="coach-color-box" style="background:${color};"></div>${coach}`;
+      coachLegend.appendChild(item);
+    });
+  }
+  renderCoachLegend();
 
 });
