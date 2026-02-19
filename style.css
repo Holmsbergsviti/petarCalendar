@@ -11,9 +11,10 @@ h1 {
 
 #calendar {
   max-width: 1200px;
-  margin: 0 auto;
+  margin: 20px auto;
   background: white;
   border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 /* Modal */
@@ -36,6 +37,7 @@ h1 {
   width: 320px;
   max-height: 90vh;
   overflow-y: auto;
+  box-sizing: border-box;
 }
 
 label {
