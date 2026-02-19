@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where, limit } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 import { db } from "./firebase.js";
 
 const modal = document.getElementById("lessonModal");
@@ -157,13 +157,7 @@ async function materializePastRepeats(parentId, baseStartISO, baseEndISO, title,
       end: occEnd.toISOString(),
       repeatWeekly: false,
       parentId,
-      extendedProps: {
-        docId: docSnap.id,     // parent lesson id
-        coach,
-        lessonType,
-        repeatWeekly,
-        occStart: startDate.toISOString()
-      }
+      occStart: occStart.toISOString()
     });
   }
 }
@@ -347,7 +341,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
               docId: docSnap.id,
               coach,
               lessonType,
-              repeatWeekly
+              repeatWeekly,
+              occStart: startDate.toISOString()
             }
           });
         };
@@ -497,7 +492,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
           lessonType,
           repeatWeekly,
           start: start.toISOString(),
-          end: end.toISOString()
+          end: end.toISOString(),
+          occStart: start.toISOString()
         });
 
         alert("✅ Lesson updated");
@@ -521,7 +517,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         lessonType,
         repeatWeekly,
         start: start.toISOString(),
-        end: end.toISOString()
+        end: end.toISOString(),
+        occStart: start.toISOString()
       });
 
       alert("✅ Lesson added");
