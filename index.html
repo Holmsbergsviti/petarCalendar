@@ -15,7 +15,6 @@
 
 <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; max-width:1200px; margin:10px auto; padding:0 10px;">
   <div id="coachLegend" style="display:flex; gap:15px; font-size:12px; flex-wrap:wrap;"></div>
-  <button id="toggleStatsBtn" style="padding:8px 12px; background:#3b82f6; color:white; border:none; border-radius:6px; cursor:pointer;">📊 Statistics</button>
   <div id="filterControls" style="display:flex; gap:8px; align-items:center;">
     <label style="font-size:12px;">Filter:</label>
     <select id="coachFilter" style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
@@ -32,21 +31,6 @@
   </div>
 </div>
 
-<div id="statsPanel" class="modal hidden">
-  <div class="modal-content" style="width:500px; max-height:80vh; overflow-y:auto;">
-    <h2>📊 Statistics</h2>
-    <div style="margin-bottom:15px;">
-      <label style="display:block; margin-bottom:8px;">
-        <select id="statsPeriod" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
-          <option value="week">This Week</option>
-          <option value="month">This Month</option>
-          <option value="total">Total</option>
-        </select>
-      </label>
-    </div>
-    <div id="statsContent" style="font-size:14px;"></div>
-    <button id="closeStatsBtn" class="secondary" style="width:100%; margin-top:15px;">Close</button>
-  </div>
 </div>
 
 <div id="calendar"></div>

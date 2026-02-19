@@ -17,11 +17,6 @@ const repeatEndDateInput = document.getElementById("repeatEndDate");
 const repeatEndDateLabel = document.getElementById("repeatEndDateLabel");
 const bulkEditOptions = document.getElementById("bulkEditOptions");
 const editAllFutureBtn = document.getElementById("editAllFutureBtn");
-const statsPanel = document.getElementById("statsPanel");
-const toggleStatsBtn = document.getElementById("toggleStatsBtn");
-const closeStatsBtn = document.getElementById("closeStatsBtn");
-const statsContent = document.getElementById("statsContent");
-const statsPeriod = document.getElementById("statsPeriod");
 const coachFilter = document.getElementById("coachFilter");
 const typeFilter = document.getElementById("typeFilter");
 const timeConflictWarning = document.getElementById("timeConflictWarning");
@@ -809,24 +804,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     editingAllFuture = !editingAllFuture;
     editAllFutureBtn.style.background = editingAllFuture ? "#7c3aed" : "#9333ea";
     editAllFutureBtn.textContent = editingAllFuture ? "✅ Edit All Future" : "Edit All Future";
-  };
-
-  // Statistics
-  toggleStatsBtn.onclick = async () => {
-    statsPanel.classList.remove("hidden");
-    const period = statsPeriod.value;
-    const stats = await calculateStatistics(period);
-    renderStatistics(stats, period);
-  };
-
-  closeStatsBtn.onclick = () => {
-    statsPanel.classList.add("hidden");
-  };
-
-  statsPeriod.onchange = async () => {
-    const period = statsPeriod.value;
-    const stats = await calculateStatistics(period);
-    renderStatistics(stats, period);
   };
 
   // Filter changes
