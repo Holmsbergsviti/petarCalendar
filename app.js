@@ -425,6 +425,21 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
     eventDidMount: info => {
       applyEventColors(info);
+
+      // Long-press to delete on mobile
+      let touchTimer = null;
+      info.el.addEventListener("touchstart", () => {
+        touchTimer = setTimeout(async () => {
+          if (confirm(`Delete lesson "${info.event.title}"?`)) {
+            const lessonId = info.event.extendedProps.docId;
+            if (lessonId) await deleteDoc(doc(db, "lessons", lessonId));
+            info.event.remove();
+            alert("🗑 Lesson deleted");
+          }
+        }, 800);
+      });
+      info.el.addEventListener("touchend", () => clearTimeout(touchTimer));
+      info.el.addEventListener("touchmove", () => clearTimeout(touchTimer));
     },
 
     eventClick: info => {
@@ -470,17 +485,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       deleteBtn.classList.remove("hidden");
     },
 
-    eventTouchStart: info => {
-      let timer = setTimeout(async ()=>{
-        if(confirm(`Delete lesson "${info.event.title}"?`)){
-          const lessonId = info.event.extendedProps.docId;
-          if(lessonId) await deleteDoc(doc(db,"lessons",lessonId));
-          info.event.remove();
-          alert("🗑 Lesson deleted");
-        }
-      }, 800);
-      info.jsEvent.addEventListener("touchend", ()=>clearTimeout(timer));
-    }
   });
 
   calendar.addEventSource(async (fetchInfo, successCallback, failureCallback) => {
@@ -559,11 +563,10 @@ document.addEventListener("DOMContentLoaded", async ()=>{
           return;
         }
 
-        // repeating weekly: generate ONLY for the visible week(s)
+        // repeating weekly: generate for the visible week(s), including past
         const baseWeekStart = weekStartMonday(baseStart);
         const rawOffset = Math.round((viewWeekStart - baseWeekStart) / (7 * 24 * 60 * 60 * 1000));
-        const minOffset = Math.round((todayWeekStart - baseWeekStart) / (7 * 24 * 60 * 60 * 1000));
-        let weeksOffset = Math.max(rawOffset, minOffset); // never generate in the past
+        let weeksOffset = Math.max(rawOffset, 0); // don't go before the original lesson date
 
         // Generate occurrences
         while (true) {
