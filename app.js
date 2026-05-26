@@ -22,6 +22,14 @@ const typeFilter = document.getElementById("typeFilter");
 const timeConflictWarning = document.getElementById("timeConflictWarning");
 const conflictMessage = document.getElementById("conflictMessage");
 const coachLegend = document.getElementById("coachLegend");
+const modalTitle = document.getElementById("modalTitle");
+
+function formatDateInput(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 let calendar;
 let selectedEvent = null;
@@ -265,7 +273,7 @@ function checkHallAvailability(start, end) {
 
 function showTimeConflictWarning(conflicts, hallConflict) {
   if (conflicts.length === 0 && !hallConflict) {
-    timeConflictWarning.style.display = "none";
+    timeConflictWarning.classList.add("hidden");
     return;
   }
   
@@ -278,107 +286,7 @@ function showTimeConflictWarning(conflicts, hallConflict) {
   }
   
   conflictMessage.textContent = message;
-  timeConflictWarning.style.display = "block";
-}
-
-// -------- Statistics --------
-async function calculateStatistics(period) {
-  const snapshot = await getDocs(collection(db, "lessons"));
-  const now = new Date();
-  now.setHours(0, 0, 0, 0); // Start of today
-  const stats = {
-    total: 0,
-    byCoach: {},
-    byType: {},
-    byCoachType: {}
-  };
-  
-  let startDate, endDate;
-  
-  if (period === "week") {
-    startDate = weekStartMonday(now);
-    endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 7);
-  } else if (period === "month") {
-    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  } else {
-    // Total: from beginning to now (past and current only)
-    startDate = new Date(0);
-    endDate = now;
-  }
-  
-  snapshot.forEach(docSnap => {
-    const d = docSnap.data();
-    const lessonStart = new Date(d.start);
-    const repeatEndDate = d.repeatEndDate ? new Date(d.repeatEndDate) : null;
-    
-    // For repeating lessons, count occurrences in period
-    if (d.repeatWeekly) {
-      const baseWeekStart = weekStartMonday(lessonStart);
-      const rangeWeekStart = weekStartMonday(startDate);
-      const weeksInRange = Math.floor((endDate - rangeWeekStart) / (7 * 24 * 60 * 60 * 1000));
-      
-      for (let w = 0; w <= weeksInRange; w++) {
-        const occStart = addDays(lessonStart, w * 7);
-        
-        // Skip if past repeat end date
-        if (repeatEndDate && occStart > repeatEndDate) continue;
-        
-        // Only count if within range AND not in the future
-        if (occStart >= startDate && occStart <= endDate) {
-          const coaches = Array.isArray(d.coach) ? d.coach : [d.coach];
-          const type = d.lessonType || "class";
-          
-          stats.total++;
-          coaches.forEach(coach => {
-            stats.byCoach[coach] = (stats.byCoach[coach] || 0) + 1;
-            const key = `${coach}-${type}`;
-            stats.byCoachType[key] = (stats.byCoachType[key] || 0) + 1;
-          });
-          stats.byType[type] = (stats.byType[type] || 0) + 1;
-        }
-      }
-    } else if (lessonStart >= startDate && lessonStart <= endDate) {
-      const coaches = Array.isArray(d.coach) ? d.coach : [d.coach];
-      const type = d.lessonType || "class";
-      
-      stats.total++;
-      coaches.forEach(coach => {
-        stats.byCoach[coach] = (stats.byCoach[coach] || 0) + 1;
-        const key = `${coach}-${type}`;
-        stats.byCoachType[key] = (stats.byCoachType[key] || 0) + 1;
-      });
-      stats.byType[type] = (stats.byType[type] || 0) + 1;
-    }
-  });
-  
-  return stats;
-}
-
-function renderStatistics(stats, period) {
-  let html = `<h3>${period === "week" ? "📅 This Week" : period === "month" ? "📅 This Month" : "📊 Total"}</h3>`;
-  html += `<div style="background:#f0f0f0; padding:10px; border-radius:6px; margin-bottom:15px;">`;
-  html += `<p style="margin:0; font-size:16px; font-weight:bold;">Total Lessons: <span style="color:#3b82f6;">${stats.total}</span></p>`;
-  html += `</div>`;
-  
-  html += `<h4>By Coach:</h4>`;
-  html += `<ul style="margin:0; padding-left:20px;">`;
-  Object.entries(stats.byCoach).forEach(([coach, count]) => {
-    const color = coachColors[coach] || "#999";
-    html += `<li style="margin-bottom:5px;"><span style="display:inline-block; width:12px; height:12px; background:${color}; border-radius:2px; margin-right:6px;"></span>${coach}: <strong>${count}</strong></li>`;
-  });
-  html += `</ul>`;
-  
-  html += `<h4>By Type:</h4>`;
-  html += `<ul style="margin:0; padding-left:20px;">`;
-  Object.entries(stats.byType).forEach(([type, count]) => {
-    const icon = type === "class" ? "👥" : "🎭";
-    html += `<li style="margin-bottom:5px;">${icon} ${type.charAt(0).toUpperCase() + type.slice(1)}: <strong>${count}</strong></li>`;
-  });
-  html += `</ul>`;
-  
-  statsContent.innerHTML = html;
+  timeConflictWarning.classList.remove("hidden");
 }
 
 // -------- Initialize Calendar --------
@@ -405,18 +313,21 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     },
 
     select: info => {
-      if(window.innerWidth > 500){    
+      if(window.innerWidth > 500){
         selectedStart = info.start;
         selectedEvent = null;
         titleInput.value = "";
-        lessonDateInput.valueAsDate = info.start;
+        lessonDateInput.value = formatDateInput(info.start);
         lessonTimeInput.value = info.start.toTimeString().slice(0,5);
+        lessonTypeSelect.value = "class";
+        Array.from(coachSelect.options).forEach(opt => opt.selected = false);
         repeatWeeklyCheckbox.checked = false;
         repeatEndDateInput.value = "";
-        repeatEndDateLabel.style.display = "none";
-        bulkEditOptions.style.display = "none";
+        repeatEndDateLabel.classList.add("hidden");
+        bulkEditOptions.classList.add("hidden");
         editingAllFuture = false;
-        timeConflictWarning.style.display = "none";
+        timeConflictWarning.classList.add("hidden");
+        modalTitle.textContent = "Add lesson";
         modal.classList.remove("hidden");
         deleteBtn.classList.add("hidden");
       }
@@ -446,27 +357,26 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       selectedEvent = info.event;
       const titleParts = selectedEvent.title.match(/^(.*) \((.*)\)$/);
       titleInput.value = titleParts ? titleParts[1] : selectedEvent.title;
-      lessonDateInput.valueAsDate = new Date(selectedEvent.start);
+      lessonDateInput.value = formatDateInput(selectedEvent.start);
       lessonTimeInput.value = selectedEvent.start.toTimeString().slice(0,5);
       repeatWeeklyCheckbox.checked = !!selectedEvent.extendedProps.repeatWeekly;
       
       // Set repeat end date if exists
       if (selectedEvent.extendedProps.repeatEndDate) {
-        repeatEndDateInput.valueAsDate = new Date(selectedEvent.extendedProps.repeatEndDate);
+        repeatEndDateInput.value = formatDateInput(new Date(selectedEvent.extendedProps.repeatEndDate));
       } else {
         repeatEndDateInput.value = "";
       }
       
       // Show bulk edit options if this is a repeating event
       if (selectedEvent.extendedProps.repeatWeekly) {
-        bulkEditOptions.style.display = "block";
+        bulkEditOptions.classList.remove("hidden");
       } else {
-        bulkEditOptions.style.display = "none";
+        bulkEditOptions.classList.add("hidden");
       }
       
-      repeatEndDateLabel.style.display = repeatWeeklyCheckbox.checked ? "block" : "none";
+      repeatEndDateLabel.classList.toggle("hidden", !repeatWeeklyCheckbox.checked);
       
-      const coachVal = titleParts ? titleParts[2].split(", ") : ["Vlad"];
       lessonTypeSelect.value = selectedEvent.extendedProps.lessonType || "class";
       
       const coaches = selectedEvent.extendedProps.coach;
@@ -480,7 +390,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         });
       }
       
-      timeConflictWarning.style.display = "none";
+      timeConflictWarning.classList.add("hidden");
+      modalTitle.textContent = "Edit lesson";
       modal.classList.remove("hidden");
       deleteBtn.classList.remove("hidden");
     },
@@ -600,12 +511,20 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   // Mobile floating add button
   addLessonBtn.onclick = () => {
     const now = new Date();
-    lessonDateInput.valueAsDate = now;
+    lessonDateInput.value = formatDateInput(now);
     lessonTimeInput.value = "09:00";
     titleInput.value = "";
+    lessonTypeSelect.value = "class";
+    Array.from(coachSelect.options).forEach(opt => opt.selected = false);
+    repeatWeeklyCheckbox.checked = false;
+    repeatEndDateInput.value = "";
+    repeatEndDateLabel.classList.add("hidden");
+    bulkEditOptions.classList.add("hidden");
+    editingAllFuture = false;
+    timeConflictWarning.classList.add("hidden");
     selectedStart = null;
     selectedEvent = null;
-    repeatWeeklyCheckbox.checked = false;
+    modalTitle.textContent = "Add lesson";
     modal.classList.remove("hidden");
     deleteBtn.classList.add("hidden");
   };
@@ -670,9 +589,9 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     // Build start date
     let start;
     if (selectedEvent) {
-      start = new Date(lessonDateInput.value);
+      const [year, month, day] = lessonDateInput.value.split("-").map(Number);
       const [h, m] = lessonTimeInput.value.split(":").map(Number);
-      start.setHours(h, m, 0, 0);
+      start = new Date(year, month - 1, day, h, m, 0, 0);
     } else if (selectedStart) {
       start = selectedStart;
     } else {
@@ -692,7 +611,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     if (conflicts.length > 0 || !hallAvail.available) {
       showTimeConflictWarning(conflicts, !hallAvail.available);
     } else {
-      timeConflictWarning.style.display = "none";
+      timeConflictWarning.classList.add("hidden");
     }
 
     // EDIT existing
@@ -794,18 +713,18 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     selectedEvent = null;
     selectedStart = null;
     editingAllFuture = false;
-    timeConflictWarning.style.display = "none";
+    timeConflictWarning.classList.add("hidden");
   };
 
   // Repeat weekly checkbox
   repeatWeeklyCheckbox.onchange = () => {
-    repeatEndDateLabel.style.display = repeatWeeklyCheckbox.checked ? "block" : "none";
+    repeatEndDateLabel.classList.toggle("hidden", !repeatWeeklyCheckbox.checked);
   };
 
   // Bulk edit button
   editAllFutureBtn.onclick = () => {
     editingAllFuture = !editingAllFuture;
-    editAllFutureBtn.style.background = editingAllFuture ? "#7c3aed" : "#9333ea";
+    editAllFutureBtn.classList.toggle("accent-active", editingAllFuture);
     editAllFutureBtn.textContent = editingAllFuture ? "✅ Edit All Future" : "Edit All Future";
   };
 
