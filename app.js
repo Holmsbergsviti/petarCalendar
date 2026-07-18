@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where, limit } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+import { collection, addDoc, getDoc, getDocs, deleteDoc, deleteField, doc, updateDoc, query, where, limit } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 import { db } from "./firebase.js";
 
 const modal = document.getElementById("lessonModal");
@@ -29,6 +29,19 @@ function formatDateInput(date) {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+// "YYYY-MM-DD" parsed as LOCAL time — new Date("YYYY-MM-DD") would be UTC midnight
+// and can shift the date by a day depending on timezone
+function parseDateInputLocal(str) {
+  const [y, m, d] = str.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function endOfDayLocal(str) {
+  const d = parseDateInputLocal(str);
+  d.setHours(23, 59, 59, 999);
+  return d;
 }
 
 let calendar;
@@ -227,6 +240,12 @@ function getSelectedCoaches() {
   return Array.from(coachSelect.selectedOptions).map(o => o.value);
 }
 
+function resetBulkEditToggle() {
+  editingAllFuture = false;
+  editAllFutureBtn.classList.remove("accent-active");
+  editAllFutureBtn.textContent = "Edit All Future";
+}
+
 // -------- Validation & Conflict Detection --------
 function checkTimeConflicts(start, end, excludeEventId = null) {
   const conflicts = [];
@@ -249,9 +268,8 @@ function checkHallAvailability(start, end) {
   const dayOfWeek = start.getDay();
   const startMins = start.getHours() * 60 + start.getMinutes();
   const endMins = end.getHours() * 60 + end.getMinutes();
-  
-  // If times are not set properly, return available
-  if (startMins === 0 || endMins === 0) return { available: true, status: null };
+
+  if (Number.isNaN(startMins) || Number.isNaN(endMins)) return { available: true, status: null };
   
   const dayRules = hallSchedule.filter(r => r.day === dayOfWeek);
   
@@ -325,7 +343,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         repeatEndDateInput.value = "";
         repeatEndDateLabel.classList.add("hidden");
         bulkEditOptions.classList.add("hidden");
-        editingAllFuture = false;
+        resetBulkEditToggle();
         timeConflictWarning.classList.add("hidden");
         modalTitle.textContent = "Add lesson";
         modal.classList.remove("hidden");
@@ -335,17 +353,44 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     },
 
     eventDidMount: info => {
+      if (info.event.extendedProps.isHall) return;
+
       applyEventColors(info);
 
       // Long-press to delete on mobile
       let touchTimer = null;
       info.el.addEventListener("touchstart", () => {
         touchTimer = setTimeout(async () => {
+          const props = info.event.extendedProps;
+
+          // Repeating occurrence: cancel only this week, never the whole series
+          if (props.repeatWeekly && props.docId && props.occStart) {
+            if (confirm(`Cancel "${info.event.title}" for this week only? (Future weeks stay)`)) {
+              try {
+                await addDoc(collection(db, "repeat_exceptions"), {
+                  parentId: props.docId,
+                  occStart: props.occStart,
+                  type: "cancel"
+                });
+                info.event.remove();
+                alert("🗓️ Cancelled for this week only");
+              } catch (e) {
+                console.error(e);
+                alert("❌ Failed to cancel");
+              }
+            }
+            return;
+          }
+
           if (confirm(`Delete lesson "${info.event.title}"?`)) {
-            const lessonId = info.event.extendedProps.docId;
-            if (lessonId) await deleteDoc(doc(db, "lessons", lessonId));
-            info.event.remove();
-            alert("🗑 Lesson deleted");
+            try {
+              if (props.docId) await deleteDoc(doc(db, "lessons", props.docId));
+              info.event.remove();
+              alert("🗑 Lesson deleted");
+            } catch (e) {
+              console.error(e);
+              alert("❌ Failed to delete lesson");
+            }
           }
         }, 800);
       });
@@ -390,6 +435,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         });
       }
       
+      resetBulkEditToggle();
       timeConflictWarning.classList.add("hidden");
       modalTitle.textContent = "Edit lesson";
       modal.classList.remove("hidden");
@@ -416,8 +462,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       const rangeStart = fetchInfo.start;
       const rangeEnd = fetchInfo.end;
       const viewWeekStart = weekStartMonday(rangeStart);
-      const todayWeekStart = weekStartMonday(new Date());
-      
+
       const selectedCoachFilter = coachFilter.value;
       const selectedTypeFilter = typeFilter.value;
 
@@ -520,7 +565,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     repeatEndDateInput.value = "";
     repeatEndDateLabel.classList.add("hidden");
     bulkEditOptions.classList.add("hidden");
-    editingAllFuture = false;
+    resetBulkEditToggle();
     timeConflictWarning.classList.add("hidden");
     selectedStart = null;
     selectedEvent = null;
@@ -536,8 +581,33 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     const parentId = selectedEvent.extendedProps.docId;
     const occStart = selectedEvent.extendedProps.occStart;
 
-    // If it is a repeating occurrence -> cancel ONLY THIS WEEK
     if (isRepeating && parentId && occStart) {
+      const wholeSeries = confirm(
+        "Delete the ENTIRE repeating series?\n\n" +
+        "OK = delete ALL occurrences (past and future)\n" +
+        "Cancel = only cancel this week's lesson"
+      );
+
+      if (wholeSeries) {
+        if (!confirm("This permanently deletes every occurrence of this lesson. Are you sure?")) return;
+        try {
+          const children = await getDocs(query(collection(db, "lessons"), where("parentId", "==", parentId)));
+          for (const c of children.docs) await deleteDoc(doc(db, "lessons", c.id));
+          const exs = await getDocs(query(collection(db, "repeat_exceptions"), where("parentId", "==", parentId)));
+          for (const ex of exs.docs) await deleteDoc(doc(db, "repeat_exceptions", ex.id));
+          await deleteDoc(doc(db, "lessons", parentId));
+
+          modal.classList.add("hidden");
+          selectedEvent = null;
+          calendar.refetchEvents();
+          alert("🗑 Series deleted");
+        } catch (e) {
+          console.error(e);
+          alert("❌ Failed to delete series");
+        }
+        return;
+      }
+
       if (!confirm("Cancel this lesson for this week only? (Future weeks stay)")) return;
 
       try {
@@ -581,7 +651,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     const coach = getSelectedCoaches();
     const lessonType = lessonTypeSelect.value;
     const repeatWeekly = repeatWeeklyCheckbox.checked;
-    const repeatEndDate = repeatWeekly && repeatEndDateInput.value ? new Date(repeatEndDateInput.value) : null;
+    // End of day local time, so the lesson on the end date itself still happens
+    const repeatEndDate = repeatWeekly && repeatEndDateInput.value ? endOfDayLocal(repeatEndDateInput.value) : null;
 
     if (!title) { alert("Enter lesson name"); return; }
     if (!coach.length) { alert("Select at least one coach"); return; }
@@ -600,7 +671,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       start = new Date(year, month - 1, day, hour, minute);
     }
 
-    const duration = lessonType === "group" ? 60 : 45;
+    const durationByType = { class: 45, double: 90, group: 60 };
+    const duration = durationByType[lessonType] ?? 45;
     const end = new Date(start.getTime() + duration * 60000);
 
     // Validate time slots
@@ -619,18 +691,9 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       try {
         const lessonId = selectedEvent.extendedProps.docId;
         const wasRepeating = !!selectedEvent.extendedProps.repeatWeekly;
+        const occStartISO = selectedEvent.extendedProps.occStart;
 
-        if (wasRepeating && !repeatWeekly) {
-          // You are turning repeating OFF now → keep history
-          await materializePastRepeats(
-            lessonId,
-            selectedEvent.start.toISOString(),
-            selectedEvent.end.toISOString(),
-            title, coach, lessonType
-          );
-        }
-
-        const updateData = {
+        const baseData = {
           title,
           coach,
           lessonType,
@@ -639,36 +702,70 @@ document.addEventListener("DOMContentLoaded", async ()=>{
           end: end.toISOString(),
           occStart: start.toISOString()
         };
-        
-        if (repeatEndDate) {
-          updateData.repeatEndDate = repeatEndDate.toISOString();
-        }
+        // deleteField() clears a previously set end date; only valid in updateDoc
+        const updatePayload = {
+          ...baseData,
+          repeatEndDate: repeatEndDate ? repeatEndDate.toISOString() : deleteField()
+        };
 
-        if (editingAllFuture && wasRepeating && repeatWeekly) {
-          // Update all future occurrences
-          const snapshot = await getDocs(query(
-            collection(db, "lessons"),
-            where("parentId", "==", lessonId)
-          ));
-          
-          for (const docSnap of snapshot.docs) {
-            const d = docSnap.data();
-            const occDate = new Date(d.occStart);
-            const selectedDate = new Date(lessonDateInput.value);
-            
-            if (occDate >= selectedDate) {
-              await updateDoc(doc(db, "lessons", docSnap.id), updateData);
-            }
+        let successMsg = "✅ Lesson updated";
+
+        if (!wasRepeating) {
+          await updateDoc(doc(db, "lessons", lessonId), updatePayload);
+        } else if (!repeatWeekly) {
+          // Turning repeating OFF → keep past occurrences as history
+          await materializePastRepeats(
+            lessonId,
+            selectedEvent.start.toISOString(),
+            selectedEvent.end.toISOString(),
+            title, coach, lessonType
+          );
+          await updateDoc(doc(db, "lessons", lessonId), updatePayload);
+        } else if (editingAllFuture) {
+          // Split the series: old series ends before this occurrence,
+          // a new series continues from the edited date/time
+          const masterSnap = await getDoc(doc(db, "lessons", lessonId));
+          const masterStart = masterSnap.exists() ? new Date(masterSnap.data().start) : null;
+          const occDate = new Date(occStartISO);
+
+          if (!masterStart || occDate.getTime() <= masterStart.getTime()) {
+            // Editing from the first occurrence → just update the whole series
+            await updateDoc(doc(db, "lessons", lessonId), updatePayload);
+          } else {
+            await updateDoc(doc(db, "lessons", lessonId), {
+              repeatEndDate: new Date(occDate.getTime() - 60000).toISOString()
+            });
+            const newMaster = { ...baseData };
+            if (repeatEndDate) newMaster.repeatEndDate = repeatEndDate.toISOString();
+            await addDoc(collection(db, "lessons"), newMaster);
           }
+          successMsg = "✅ This and all future lessons updated";
         } else {
-          await updateDoc(doc(db, "lessons", lessonId), updateData);
+          // Repeating lesson, no bulk edit → change ONLY this occurrence:
+          // cancel it in the series and create a standalone replacement
+          await addDoc(collection(db, "repeat_exceptions"), {
+            parentId: lessonId,
+            occStart: occStartISO,
+            type: "cancel"
+          });
+          await addDoc(collection(db, "lessons"), {
+            title,
+            coach,
+            lessonType,
+            repeatWeekly: false,
+            start: start.toISOString(),
+            end: end.toISOString(),
+            parentId: lessonId,
+            occStart: start.toISOString()
+          });
+          successMsg = "✅ Updated this week's lesson only";
         }
 
-        alert("✅ Lesson updated");
+        alert(successMsg);
         modal.classList.add("hidden");
         selectedEvent = null;
         selectedStart = null;
-        editingAllFuture = false;
+        resetBulkEditToggle();
 
         calendar.refetchEvents();
       } catch (e) {
@@ -712,7 +809,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     modal.classList.add("hidden");
     selectedEvent = null;
     selectedStart = null;
-    editingAllFuture = false;
+    resetBulkEditToggle();
     timeConflictWarning.classList.add("hidden");
   };
 
